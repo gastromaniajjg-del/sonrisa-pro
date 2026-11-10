@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="es-ES">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f7bf6">
+  <meta name="description" content="La misión de la sonrisa: aprende a cepillarte los dientes con Denti en dos minutos.">
+  <title>La misión de la sonrisa</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="assets/icons/icon-192.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div id="app">
+
+    <!-- INICIO -->
+    <section class="screen active" id="screen-home" aria-labelledby="home-title">
+      <header class="topbar">
+        <div class="stars-pill" aria-live="polite"><span aria-hidden="true">⭐</span> <b id="home-stars">0</b></div>
+        <button class="icon-btn" id="btn-settings" aria-label="Ajustes de sonido">⚙️</button>
+      </header>
+      <div class="denti-slot denti-slot--big" id="home-denti"></div>
+      <h1 id="home-title">La misión de la sonrisa</h1>
+      <p class="sub">Dani y Denti, ¡dos minutos de cepillado!</p>
+      <button class="big-btn" id="btn-start">¡Empezar misión!</button>
+      <button class="soft-btn" id="btn-wardrobe">👕 Vestidor de Denti</button>
+      <p class="next-unlock" id="next-unlock"></p>
+    </section>
+
+    <!-- CEPILLADO -->
+    <section class="screen" id="screen-brush" aria-label="Cepillado">
+      <header class="brush-head">
+        <div class="ring" id="ring" role="timer" aria-live="off">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="44" class="ring-bg"/>
+            <circle cx="50" cy="50" r="44" class="ring-fg" id="ring-fg" pathLength="120"/>
+            <g id="ring-ticks"></g>
+          </svg>
+          <span id="time-left">2:00</span>
+        </div>
+        <div class="zone-info">
+          <div class="zone-dots" id="zone-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <h2 id="zone-label" aria-live="polite">Arriba a la derecha</h2>
+          <p id="step-label" class="step-label">Coloca el cepillo</p>
+        </div>
+      </header>
+
+      <div class="stage">
+        <div class="denti-slot denti-slot--side" id="brush-denti"></div>
+        <div class="mouth-wrap" id="mouth"></div>
+      </div>
+
+      <p class="step-hint" id="step-hint">Inclinado hacia la encía</p>
+      <div class="lyrics" id="lyrics" aria-live="off"></div>
+
+      <footer class="brush-controls">
+        <button class="soft-btn" id="btn-pause">⏸ Pausa</button>
+        <button class="soft-btn ghost" id="btn-quit">Salir</button>
+      </footer>
+      <div class="zone-flash" id="zone-flash" aria-hidden="true"></div>
+    </section>
+
+    <!-- CELEBRACIÓN -->
+    <section class="screen" id="screen-done" aria-labelledby="done-title">
+      <canvas id="confetti" aria-hidden="true"></canvas>
+      <div class="denti-slot denti-slot--big" id="done-denti"></div>
+      <h1 id="done-title">¡Misión cumplida!</h1>
+      <div class="star-award" aria-hidden="true">⭐</div>
+      <p class="sub" id="done-text">Has ganado una estrella.</p>
+      <div class="unlocked" id="unlocked" hidden></div>
+      <button class="big-btn" id="btn-home">Volver al inicio</button>
+      <button class="soft-btn" id="btn-wardrobe-2">👕 Vestir a Denti</button>
+    </section>
+
+    <!-- VESTIDOR -->
+    <section class="screen" id="screen-wardrobe" aria-labelledby="wardrobe-title">
+      <header class="topbar">
+        <button class="icon-btn" data-back aria-label="Volver">←</button>
+        <h2 id="wardrobe-title">Vestidor de Denti</h2>
+        <div class="stars-pill"><span aria-hidden="true">⭐</span> <b id="wardrobe-stars">0</b></div>
+      </header>
+      <div class="denti-slot denti-slot--big" id="wardrobe-denti"></div>
+      <ul class="acc-grid" id="acc-grid"></ul>
+    </section>
+
+    <!-- AJUSTES -->
+    <section class="screen" id="screen-settings" aria-labelledby="settings-title">
+      <header class="topbar">
+        <button class="icon-btn" data-back aria-label="Volver">←</button>
+        <h2 id="settings-title">Sonido</h2>
+        <span></span>
+      </header>
+      <fieldset class="modes">
+        <legend>¿Qué quieres escuchar?</legend>
+        <label class="mode"><input type="radio" name="mode" value="cancion"><span><b>🎵 Canción y voz</b><small>Música, letra en pantalla y avisos de Denti</small></span></label>
+        <label class="mode"><input type="radio" name="mode" value="voz"><span><b>🗣️ Solo instrucciones de voz</b><small>Denti explica cada paso, sin música</small></span></label>
+        <label class="mode"><input type="radio" name="mode" value="instrumental"><span><b>🎹 Solo música instrumental</b><small>Sin voz. La campanita avisa del cambio de zona</small></span></label>
+      </fieldset>
+      <div class="vol">
+        <label for="vol-music">🎶 Volumen de la música</label>
+        <input type="range" id="vol-music" min="0" max="1" step="0.05">
+      </div>
+      <div class="vol">
+        <label for="vol-voice">🗣️ Volumen de la voz</label>
+        <input type="range" id="vol-voice" min="0" max="1" step="0.05">
+      </div>
+      <button class="soft-btn" id="btn-test-audio">▶ Probar sonido</button>
+      <p class="audio-status" id="audio-status"></p>
+    </section>
+
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
