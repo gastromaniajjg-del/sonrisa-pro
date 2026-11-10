@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es-ES">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Exportar banda sonora</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 16px; line-height: 1.5; }
+    button { font: inherit; padding: .6rem 1rem; margin: .25rem .25rem .25rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Banda sonora de «Escapa en 2 minutos»</h1>
+  <p>Genera en WAV la música que suena en la app (120,000 s, 128 BPM, 44,1 kHz).
+     Sirve de referencia para grabar los mensajes de radio o producir una versión de estudio.</p>
+  <button id="full">Descargar banda sonora</button>
+  <button id="click">Descargar claqué (metrónomo) con avisos de nivel</button>
+  <p id="out"></p>
+  <script type="module">
+    import { renderAll } from '../js/music-engine.js';
+    import { TOTAL_SECONDS, BEAT_SECONDS, SEGMENT_SECONDS } from '../js/config.js';
+
+    const RATE = 44100;
+
+    function toWav(buffer) {
+      const ch = buffer.numberOfChannels;
+      const len = buffer.length;
+      const data = new DataView(new ArrayBuffer(44 + len * ch * 2));
+      const w = (o, s) => [...s].forEach((c, i) => data.setUint8(o + i, c.charCodeAt(0)));
+      w(0, 'RIFF'); data.setUint32(4, 36 + len * ch * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+      data.setUint32(16, 16, true); data.setUint16(20, 1, true); data.setUint16(22, ch, true);
+      data.setUint32(24, RATE, true); data.setUint32(28, RATE * ch * 2, true); data.setUint16(32, ch * 2, true);
+      data.setUint16(34, 16, true); w(36, 'data'); data.setUint32(40, len * ch * 2, true);
+      const chans = [...Array(ch)].map((_, i) => buffer.getChannelData(i));
+      let o = 44;
+      for (let i = 0; i < len; i++) for (let c = 0; c < ch; c++) {
+        const s = Math.max(-1, Math.min(1, chans[c][i]));
+        data.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true); o += 2;
+      }
+      return new Blob([data], { type: 'audio/wav' });
+    }
+
+    export async function render(kind) {
+      const ctx = new OfflineAudioContext(2, RATE * TOTAL_SECONDS, RATE);
+      if (kind === 'click') {
+        for (let t = 0, i = 0; t < TOTAL_SECONDS - 1e-6; t += BEAT_SECONDS, i++) {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          const zone = Math.abs(t % SEGMENT_SECONDS) < 1e-6;
+          o.frequency.value = zone ? 1760 : i % 4 === 0 ? 1200 : 800;
+          g.gain.setValueAtTime(zone ? 0.6 : 0.35, t);
+          g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+          o.connect(g).connect(ctx.destination);
+          o.start(t); o.stop(t + 0.06);
+        }
+      } else {
+        renderAll(ctx, ctx.destination);
+      }
+      return ctx.startRendering();
+    }
+
+    async function download(kind, name) {
+      const out = document.getElementById('out');
+      out.textContent = 'Generando…';
+      const buf = await render(kind);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(toWav(buf));
+      a.download = name;
+      a.click();
+      out.textContent = `Listo: ${name} (${buf.duration.toFixed(3)} s)`;
+    }
+    document.getElementById('full').onclick = () => download('full', 'escapa-banda-sonora.wav');
+    document.getElementById('click').onclick = () => download('click', 'escapa-claque.wav');
+    window.__render = render;
+    window.__toWav = toWav;
+  </script>
+</body>
+</html>
