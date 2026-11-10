@@ -1,13 +1,12 @@
-// Arranque y pantallas de «La misión de la sonrisa».
+// Arranque y pantallas de «La misión de la sonrisa · Escapa en 2 minutos».
 
-import { SEGMENTS, STEPS, TOTAL_SECONDS, AUDIO_MODES, stepAt } from './config.js';
+import { SEGMENTS, STEPS, TOTAL_SECONDS, SEGMENT_SECONDS, stepAt } from './config.js';
 import { BrushingTimer, formatTime } from './timer.js';
 import { AudioDirector } from './audio-director.js';
-import { LYRIC_LINES, lyricAt } from './song.js';
+import { RADIO_CUES, FLICKERS, radioAt } from './soundtrack.js';
 import { Mouth } from './mouth.js';
 import { Progress } from './progress.js';
 import { ACCESSORIES, isUnlocked, nextUnlock } from './accessories.js';
-import { startConfetti } from './confetti.js';
 
 const $ = (sel) => document.querySelector(sel);
 const progress = new Progress();
@@ -15,21 +14,19 @@ const timer = new BrushingTimer();
 const audio = new AudioDirector(timer, progress.data.audio);
 const mouth = new Mouth($('#mouth'));
 
-// ── Denti (3D, con alternativa 2D) ──────────────────────────────────────────
-let denti;
-async function initDenti() {
+// ── Escenario 3D (si el móvil no tiene WebGL, queda un fondo liso) ───────────
+let world = null;
+async function initWorld() {
   try {
-    const mod = await import('./denti.js');
-    denti = mod.webglAvailable() ? new mod.Denti() : new mod.DentiFallback();
+    const mod = await import('./scene.js');
+    if (!mod.webglAvailable()) return;
+    world = new mod.Scene($('#world'));
+    world.setEquipped(progress.data.equipped);
+    world.setMode(current);
+    world.start();
   } catch (err) {
-    console.warn('Denti 3D no disponible', err);
-    const mod = await import('./denti.js').catch(() => null);
-    denti = mod ? new mod.DentiFallback() : null;
+    console.warn('Escenario 3D no disponible', err);
   }
-  if (!denti) return;
-  denti.setEquipped(progress.data.equipped);
-  denti.mount($('#home-denti'));
-  denti.setExpression('feliz');
 }
 
 // ── Navegación ──────────────────────────────────────────────────────────────
@@ -39,8 +36,8 @@ function show(name, { back = false } = {}) {
   if (!back && current !== name) history.push(current);
   document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === `screen-${name}`));
   current = name;
-  const slot = { home: '#home-denti', brush: '#brush-denti', done: '#done-denti', wardrobe: '#wardrobe-denti' }[name];
-  if (denti && slot) denti.mount($(slot));
+  const sceneMode = { home: 'home', brush: 'brush', done: 'done', wardrobe: 'hangar', settings: 'home' }[name];
+  world?.setMode(sceneMode);
   if (name === 'home') renderHome();
   if (name === 'wardrobe') renderWardrobe();
   if (name === 'settings') renderSettings();
@@ -52,11 +49,11 @@ function renderHome() {
   $('#home-stars').textContent = progress.stars;
   const next = nextUnlock(progress.stars);
   $('#next-unlock').textContent = next
-    ? `Te faltan ${next.stars - progress.stars} ⭐ para: ${next.emoji} ${next.name}`
-    : '¡Has desbloqueado todos los disfraces!';
-  denti?.setBrushMotion(null);
-  denti?.setExpression('feliz');
-  denti?.setShine(0);
+    ? `${next.stars - progress.stars} 🗺️ más para: ${next.icon} ${next.name}`
+    : 'Taller completo: lo tienes todo.';
+  world?.setBrushMotion(null);
+  world?.setExpression('feliz');
+  world?.setLevel(0, { instant: true });
 }
 
 $('#btn-start').addEventListener('click', startMission);
@@ -66,7 +63,6 @@ $('#btn-settings').addEventListener('click', () => show('settings'));
 $('#btn-home').addEventListener('click', () => { history.length = 0; show('home', { back: true }); });
 
 // ── Cepillado ───────────────────────────────────────────────────────────────
-// Marcas de los cambios de zona en el anillo.
 $('#ring-ticks').innerHTML = [30, 60, 90]
   .map((s) => {
     const a = (s / TOTAL_SECONDS) * Math.PI * 2;
@@ -83,14 +79,17 @@ async function keepAwake(on) {
   } catch { /* no soportado o denegado */ }
 }
 
+let nextFlicker = 0;
 async function startMission() {
   await audio.unlock(); // dentro del gesto del usuario
   mouth.reset();
+  nextFlicker = 0;
+  $('#radio-text').textContent = '…';
+  delete $('#radio').dataset.cue;
   show('brush');
-  denti?.setExpression('feliz');
-  denti?.setShine(0);
-  $('#btn-pause').textContent = '⏸ Pausa';
-  $('#lyrics').hidden = audio.settings.mode !== AUDIO_MODES.CANCION && audio.settings.mode !== AUDIO_MODES.INSTRUMENTAL;
+  world?.setLevel(0, { instant: true });
+  world?.setExpression('feliz');
+  $('#btn-pause').textContent = 'Pausa';
   keepAwake(true);
   timer.start();
   loop();
@@ -116,7 +115,7 @@ function loop() {
   timer.update();
   rafId = requestAnimationFrame(loop);
   // Respaldo: si el navegador congela requestAnimationFrame (pantalla en segundo plano),
-  // el temporizador sigue comprobándose y la misión termina en su segundo exacto.
+  // el temporizador sigue comprobándose.
   backupTimeout = setTimeout(() => timer.update(), 250);
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && timer.state === 'running') loop(); });
@@ -125,28 +124,35 @@ timer.on('tick', ({ elapsed, remaining }) => {
   $('#time-left').textContent = formatTime(remaining);
   $('#ring-fg').style.strokeDashoffset = String(TOTAL_SECONDS - elapsed);
   mouth.update(elapsed, stepAt(elapsed));
-  const segIdx = Math.min(3, Math.floor(elapsed / 30));
-  denti?.setShine((elapsed - segIdx * 30) / 30 * 0.6 + segIdx * 0.1);
-  renderLyrics(elapsed);
+  $('#clean-pct').textContent = `LIMPIEZA ${Math.floor((elapsed / TOTAL_SECONDS) * 100)}%`;
+  // Parpadeos de luz sincronizados con el chasquido de la música.
+  while (nextFlicker < FLICKERS.length && FLICKERS[nextFlicker] <= elapsed) {
+    if (elapsed - FLICKERS[nextFlicker] < 0.5) world?.flicker(0.6);
+    nextFlicker++;
+  }
+  renderRadio(elapsed);
 });
 
 timer.on('segment', ({ index, elapsed }) => {
   const seg = SEGMENTS[index];
   $('#zone-label').textContent = seg.label;
+  $('#level-label').textContent = seg.level.toUpperCase();
   document.querySelectorAll('#zone-dots i').forEach((d, i) => {
     d.classList.toggle('done', i < index);
     d.classList.toggle('active', i === index);
   });
+  const card = $('#level-card');
+  card.textContent = seg.level.toUpperCase();
+  card.classList.remove('go');
+  void card.offsetWidth;
+  card.classList.add('go');
   if (index > 0) {
-    denti?.cheer(1800); // animado al cambiar de zona
-    const f = $('#zone-flash');
-    f.classList.remove('go');
-    void f.offsetWidth;
-    f.classList.add('go');
-    navigator.vibrate?.(120);
+    world?.setLevel(index);
+    world?.cheer(1800); // animado al cambiar de nivel
+    navigator.vibrate?.([80, 60, 80]);
   } else if (elapsed < 1) {
-    // Feliz al empezar, concentrado en cuanto empieza a enseñar.
-    setTimeout(() => { if (timer.state === 'running' && denti?.mood === 'feliz') denti.setExpression('concentrado'); }, 2500);
+    // Feliz al empezar; concentrado en cuanto empieza a enseñar.
+    setTimeout(() => { if (timer.state === 'running' && world?.mood === 'feliz') world.setExpression('concentrado'); }, 2500);
   }
 });
 
@@ -154,7 +160,7 @@ timer.on('step', ({ index }) => {
   const step = STEPS[index];
   $('#step-label').textContent = step.label;
   $('#step-hint').textContent = step.hint;
-  denti?.setBrushMotion(step.brush);
+  world?.setBrushMotion(step.brush);
 });
 
 timer.on('complete', () => {
@@ -163,43 +169,37 @@ timer.on('complete', () => {
   keepAwake(false);
   $('#time-left').textContent = '0:00';
   $('#ring-fg').style.strokeDashoffset = '0';
+  $('#clean-pct').textContent = 'LIMPIEZA 100%';
   mouth.finish();
   const unlocked = progress.completeMission();
-  showCelebration(unlocked);
+  showExit(unlocked);
 });
 
-function renderLyrics(t) {
-  const box = $('#lyrics');
-  if (box.hidden) return;
-  const line = lyricAt(t);
-  const key = line ? line.start : -1;
-  if (box.dataset.key === String(key)) return;
-  box.dataset.key = String(key);
-  const next = LYRIC_LINES.find((l) => l.start >= (line ? line.end : t));
-  box.innerHTML = '';
-  const cur = document.createElement('div');
-  cur.className = 'line';
-  cur.textContent = line ? line.text : '';
-  box.appendChild(cur);
-  if (next && next.start < TOTAL_SECONDS) {
-    const n = document.createElement('div');
-    n.className = 'line next';
-    n.textContent = next.text;
-    box.appendChild(n);
-  }
+// Transcripción de la radio: siempre visible, también en «Solo música».
+function renderRadio(t) {
+  const cue = radioAt(t);
+  const box = $('#radio');
+  if (!cue || box.dataset.cue === cue.id) return;
+  box.dataset.cue = cue.id;
+  $('#radio-text').textContent = cue.text;
+  box.classList.remove('new');
+  void box.offsetWidth;
+  box.classList.add('new');
 }
 
 $('#btn-pause').addEventListener('click', () => {
   if (timer.state === 'running') {
     timer.pause();
-    $('#btn-pause').textContent = '▶ Seguir';
-    denti?.setBrushMotion(null);
+    $('#btn-pause').textContent = 'Seguir';
+    world?.setBrushMotion(null);
+    world?.setMode('home');
     keepAwake(false);
   } else if (timer.state === 'paused') {
     audio.unlock().then(() => {
       timer.resume();
-      $('#btn-pause').textContent = '⏸ Pausa';
-      denti?.setBrushMotion(stepAt(timer.elapsed()).brush);
+      $('#btn-pause').textContent = 'Pausa';
+      world?.setMode('brush');
+      world?.setBrushMotion(stepAt(timer.elapsed()).brush);
       keepAwake(true);
       loop();
     });
@@ -214,28 +214,26 @@ $('#btn-quit').addEventListener('click', () => {
   show('home', { back: true });
 });
 
-// ── Celebración ─────────────────────────────────────────────────────────────
-function showCelebration(unlocked) {
+// ── Salida (celebración) ────────────────────────────────────────────────────
+function showExit(unlocked) {
   show('done');
-  denti?.setBrushMotion(null);
-  denti?.setShine(1);
-  denti?.setExpression('contento');
-  $('#done-text').textContent = `Has ganado una estrella. ¡Ya tienes ${progress.stars} ⭐!`;
+  world?.setBrushMotion(null);
+  world?.setExpression('contento');
+  $('#done-text').textContent = `Fragmento de mapa conseguido. Llevas ${progress.stars} 🗺️.`;
   const box = $('#unlocked');
   if (unlocked.length) {
     box.hidden = false;
-    box.textContent = `🎁 ¡Nuevo para Denti! ${unlocked.map((a) => `${a.emoji} ${a.name}`).join(', ')}`;
+    box.textContent = `Desbloqueado: ${unlocked.map((a) => `${a.icon} ${a.name}`).join(', ')}`;
   } else {
     box.hidden = true;
   }
-  startConfetti($('#confetti'));
 }
 
-// ── Vestidor ────────────────────────────────────────────────────────────────
+// ── Taller del dron ─────────────────────────────────────────────────────────
 function renderWardrobe() {
   $('#wardrobe-stars').textContent = progress.stars;
-  denti?.setBrushMotion(null);
-  denti?.setExpression('feliz');
+  world?.setBrushMotion(null);
+  world?.setExpression('feliz');
   const grid = $('#acc-grid');
   grid.innerHTML = '';
   for (const acc of ACCESSORIES) {
@@ -243,13 +241,14 @@ function renderWardrobe() {
     const b = document.createElement('button');
     b.className = 'acc';
     const open = isUnlocked(acc, progress.stars);
+    const on = progress.data.equipped[acc.slot] === acc.id;
     b.disabled = !open;
-    b.setAttribute('aria-pressed', String(progress.data.equipped[acc.slot] === acc.id));
-    b.innerHTML = `<span class="e" aria-hidden="true">${open ? acc.emoji : '🔒'}</span><b>${acc.name}</b><small>${open ? (progress.data.equipped[acc.slot] === acc.id ? 'Puesto' : 'Ponérselo') : `${acc.stars} ⭐`}</small>`;
+    b.setAttribute('aria-pressed', String(on));
+    b.innerHTML = `<span class="e" aria-hidden="true">${open ? acc.icon : '🔒'}</span><b>${acc.name}</b><small>${open ? (on ? 'MONTADO' : 'MONTAR') : `${acc.stars} 🗺️`}</small>`;
     b.addEventListener('click', () => {
       progress.equip(acc.id);
-      denti?.setEquipped(progress.data.equipped);
-      denti?.cheer(1200);
+      world?.setEquipped(progress.data.equipped);
+      world?.cheer(1200);
       renderWardrobe();
     });
     li.appendChild(b);
@@ -257,16 +256,18 @@ function renderWardrobe() {
   }
 }
 
-// ── Ajustes de sonido ───────────────────────────────────────────────────────
+// ── Audio ───────────────────────────────────────────────────────────────────
 function renderSettings() {
   const a = progress.data.audio;
   document.querySelectorAll('input[name="mode"]').forEach((r) => { r.checked = r.value === a.mode; });
   $('#vol-music').value = a.musicVolume;
   $('#vol-voice').value = a.voiceVolume;
-  const status = [];
-  status.push(audio.assets.instrumental ? 'Música: pista grabada.' : 'Música: sintetizada en el móvil (original, sin conexión).');
-  status.push(audio.assets.vocal ? 'Canción cantada: grabada.' : 'Canción cantada: aún no grabada; la letra se muestra en pantalla.');
-  status.push(audio.assets.voice.size ? `Voz: ${audio.assets.voice.size} frases grabadas.` : 'Voz: voz del sistema en español (si el móvil la tiene instalada).');
+  const status = [
+    audio.assets.instrumental ? 'Música: pista grabada.' : 'Música: generada en el móvil (original, funciona sin conexión).',
+    audio.assets.voice.size
+      ? `Radio: ${audio.assets.voice.size} de ${RADIO_CUES.length} mensajes grabados.`
+      : 'Radio: voz del sistema en español (sin conexión solo si el móvil la tiene descargada).',
+  ];
   $('#audio-status').textContent = status.join(' ');
 }
 
@@ -285,22 +286,17 @@ $('#vol-voice').addEventListener('input', (e) => {
   audio.setVolumes({ voiceVolume: +e.target.value });
 });
 
-// Prueba de 5 s: usa un temporizador propio, independiente del de la misión.
-let testTimer = null;
+// Prueba de 5 s con un temporizador propio, independiente del de la misión.
+let testing = false;
 $('#btn-test-audio').addEventListener('click', async () => {
-  if (testTimer) return;
+  if (testing) return;
+  testing = true;
   const t = new BrushingTimer({ total: TOTAL_SECONDS });
   const d = new AudioDirector(t, { ...progress.data.audio }, audio);
   await d.unlock();
-  testTimer = t;
   t.start();
   const iv = setInterval(() => t.update(), 50);
-  setTimeout(() => {
-    clearInterval(iv);
-    t.reset();
-    d.dispose();
-    testTimer = null;
-  }, 5000);
+  setTimeout(() => { clearInterval(iv); t.reset(); d.dispose(); testing = false; }, 5000);
 });
 
 // ── Service worker (funcionamiento sin conexión) ───────────────────────────
@@ -308,8 +304,8 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch((e) => console.warn('SW', e));
 }
 
-initDenti();
 renderHome();
+initWorld();
 
 // Acceso para depuración desde la consola.
-window.__mision = { timer, audio, progress };
+window.__mision = { timer, audio, progress, get world() { return world; }, SEGMENT_SECONDS };

@@ -1,10 +1,10 @@
 # sonrisa-pro
 
-Aplicación móvil infantil para aprender a cepillarse los dientes mediante música, animaciones y recordatorios.
+Aplicación móvil para aprender a cepillarse los dientes mediante música, animaciones y recordatorios.
 
-## La misión de la sonrisa (modo musical)
+## La misión de la sonrisa · Escapa en 2 minutos
 
-Dani se cepilla durante **2 minutos exactos** junto a **Denti**, un diente 3D con capa azul. La boca se divide en 4 cuadrantes de 30 s, y cada cuadrante en 4 pasos de 7,5 s (colocar el cepillo, por fuera, por dentro, muelas). La música, la letra, la voz y las animaciones siguen ese mismo reparto.
+Versión para 11-12 años. Dani recorre cuatro niveles de pasillos liminales (oficinas, sótano, azulejos, luz de emergencia), uno por zona de la boca, guiado por radio y acompañado por **Denti**, un dron explorador. Cada nivel dura 30 s y tiene 4 pasos de 7,5 s: colocar el cepillo, círculos por fuera, cara interna y muelas. A los **120 s exactos** encuentra la salida.
 
 Es una PWA (web instalable): se abre en el navegador del móvil, se añade a la pantalla de inicio y, una vez cargada, funciona sin Internet.
 
@@ -21,28 +21,28 @@ No hace falta instalar dependencias. Three.js va incluido en `vendor/` (licencia
 
 | Archivo | Qué hace |
 |---|---|
-| `js/config.js` | Duraciones, cuadrantes, pasos y modos de audio |
+| `js/config.js` | Duraciones, niveles, pasos y modos de audio |
 | `js/timer.js` | Temporizador maestro. Única fuente de verdad del tiempo |
-| `js/song.js` | Letra, melodía, acordes y frases de voz con sus tiempos |
+| `js/soundtrack.js` | Banda sonora, guion de radio y parpadeos de luz con sus tiempos |
 | `js/music-engine.js` | Síntesis en tiempo real de la música (Web Audio) |
-| `js/audio-director.js` | Modos de audio, volúmenes, sincronía con el temporizador y corte en 120 s |
-| `js/denti.js` | Denti en 3D (Three.js) con expresiones y accesorios. Alternativa 2D sin WebGL |
-| `js/mouth.js` | Boca en SVG: cuadrante resaltado, cepillo animado, burbujas y brillo |
-| `js/progress.js` | Estrellas, misiones y accesorios guardados en el móvil |
-| `js/accessories.js` | Accesorios y disfraces desbloqueables |
+| `js/audio-director.js` | Modos de audio, volúmenes, efecto radio, sincronía y corte en 120 s |
+| `js/scene.js` | Pasillos 3D infinitos y el dron Denti (Three.js) |
+| `js/mouth.js` | Escáner de la boca: 28 dientes, zona activa, cepillo animado, espuma y limpieza |
+| `js/progress.js` | Fragmentos de mapa, misiones y mejoras guardados en el móvil |
+| `js/accessories.js` | Mejoras desbloqueables del dron |
 | `sw.js` | Caché para funcionar sin conexión |
-| `docs/cancion-mision-sonrisa.md` | Ficha de la canción y encargo de grabación |
-| `docs/tiempos.md` | Hoja de tiempos generada desde `js/song.js` |
-| `tools/exportar-pista-guia.html` | Exporta la pista guía en WAV para grabar la voz |
+| `docs/banda-sonora.md` | Ficha de la música y encargo de grabación de la radio |
+| `docs/tiempos.md` | Hoja de tiempos generada desde `js/soundtrack.js` |
+| `tools/exportar-pista-guia.html` | Exporta la banda sonora y un metrónomo en WAV |
 
 ### Cómo se garantiza que dura 120 s
 
-El temporizador calcula el tiempo con el reloj del sistema (`performance.now`), no contando fotogramas ni siguiendo a la canción. El audio se programa a partir del temporizador y lleva un fundido de 30 ms que termina justo en el segundo 120; además, al completar se corta todo. Si el audio se desvía más de 40 ms, se recoloca. Medido en Chromium: cambios de zona a 30,00 / 60,00 / 90,01 s y audio en silencio después del 120.
+El temporizador calcula el tiempo con el reloj del sistema (`performance.now`), no contando fotogramas ni siguiendo a la música. El audio se programa a partir del temporizador y lleva un fundido de 30 ms que termina justo en el segundo 120; además, al completar se corta todo. Si el audio se desvía más de 40 ms, se recoloca.
 
 ### Audio
 
-- **Canción y voz**: música + letra en pantalla + avisos de zona de Denti.
-- **Solo instrucciones de voz**: Denti explica cada paso, sin música.
-- **Solo música instrumental**: sin voz; campanita y redoble avisan del cambio de zona.
+- **Música + radio**: banda sonora y la Base dando cada instrucción.
+- **Solo radio**: instrucciones sin música.
+- **Solo música**: sin voz; las instrucciones se leen en pantalla y la alarma avisa del cambio de nivel.
 
-Volumen de música y de voz por separado. La voz cantada **aún no está grabada**: ver `docs/cancion-mision-sonrisa.md` y `assets/audio/README.md`.
+Volumen de música y de radio por separado. Los mensajes de radio **aún no están grabados**: ver `docs/banda-sonora.md` y `assets/audio/README.md`.

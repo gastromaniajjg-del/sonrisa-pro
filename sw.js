@@ -1,6 +1,6 @@
 // Service worker: guarda la app completa en el móvil para que funcione sin Internet.
 // Al cambiar cualquier archivo, sube la versión para que se actualice la caché.
-const VERSION = 'mision-sonrisa-v1';
+const VERSION = 'mision-sonrisa-v2';
 
 const CORE = [
   './',
@@ -9,15 +9,14 @@ const CORE = [
   'css/styles.css',
   'js/app.js',
   'js/config.js',
-  'js/song.js',
+  'js/soundtrack.js',
   'js/timer.js',
   'js/music-engine.js',
   'js/audio-director.js',
   'js/mouth.js',
-  'js/denti.js',
+  'js/scene.js',
   'js/accessories.js',
   'js/progress.js',
-  'js/confetti.js',
   'vendor/three.module.min.js',
   'assets/icons/icon.svg',
   'assets/icons/icon-192.png',
@@ -30,9 +29,8 @@ async function audioFiles() {
     const res = await fetch('assets/audio/manifest.json', { cache: 'no-cache' });
     const m = await res.json();
     const files = [];
-    if (m.instrumental) files.push('assets/audio/cancion-instrumental.mp3');
-    if (m.vocal) files.push('assets/audio/cancion-voz.mp3');
-    for (const id of m.voz || []) files.push(`assets/audio/voz/${id}.mp3`);
+    if (m.instrumental) files.push('assets/audio/banda-sonora.mp3');
+    for (const id of m.radio || []) files.push(`assets/audio/radio/${id}.mp3`);
     return files;
   } catch {
     return [];

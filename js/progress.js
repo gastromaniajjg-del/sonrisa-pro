@@ -6,10 +6,10 @@ import { AUDIO_MODES } from './config.js';
 const KEY = 'mision-sonrisa:v1';
 
 const DEFAULTS = {
-  stars: 0,
+  stars: 0, // fragmentos de mapa: 1 por misión completada
   missions: [], // [{ date: ISO, seconds: 120 }]
-  equipped: { cabeza: null, cara: null, cuello: null, capa: null },
-  audio: { mode: AUDIO_MODES.CANCION, musicVolume: 0.8, voiceVolume: 1 },
+  equipped: { arriba: null, frontal: null, carcasa: null },
+  audio: { mode: AUDIO_MODES.MUSICA_RADIO, musicVolume: 0.8, voiceVolume: 1 },
 };
 
 export class Progress {
@@ -23,12 +23,11 @@ export class Progress {
       const raw = this.storage?.getItem(KEY);
       if (!raw) return structuredClone(DEFAULTS);
       const d = JSON.parse(raw);
-      return {
-        ...structuredClone(DEFAULTS),
-        ...d,
-        equipped: { ...DEFAULTS.equipped, ...d.equipped },
-        audio: { ...DEFAULTS.audio, ...d.audio },
-      };
+      const audio = { ...DEFAULTS.audio, ...d.audio };
+      if (!Object.values(AUDIO_MODES).includes(audio.mode)) audio.mode = DEFAULTS.audio.mode;
+      const equipped = { ...DEFAULTS.equipped };
+      for (const slot of Object.keys(equipped)) if (d.equipped?.[slot]) equipped[slot] = d.equipped[slot];
+      return { ...structuredClone(DEFAULTS), ...d, equipped, audio };
     } catch {
       return structuredClone(DEFAULTS);
     }

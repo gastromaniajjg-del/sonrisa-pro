@@ -3,19 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Exportar pista guía</title>
+  <title>Exportar banda sonora</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 16px; line-height: 1.5; }
     button { font: inherit; padding: .6rem 1rem; margin: .25rem .25rem .25rem 0; }
   </style>
 </head>
 <body>
-  <h1>Pista guía de «La misión de la sonrisa»</h1>
-  <p>Genera en WAV la música sintetizada de la app (120,000 s, 128 BPM, 44,1 kHz).
-     Sirve de base para que el estudio grabe la voz cantada exactamente encima.</p>
-  <button id="full">Descargar instrumental con melodía guía</button>
-  <button id="nomel">Descargar instrumental sin melodía</button>
-  <button id="click">Descargar claqué (metrónomo) con avisos de zona</button>
+  <h1>Banda sonora de «Escapa en 2 minutos»</h1>
+  <p>Genera en WAV la música que suena en la app (120,000 s, 128 BPM, 44,1 kHz).
+     Sirve de referencia para grabar los mensajes de radio o producir una versión de estudio.</p>
+  <button id="full">Descargar banda sonora</button>
+  <button id="click">Descargar claqué (metrónomo) con avisos de nivel</button>
   <p id="out"></p>
   <script type="module">
     import { renderAll } from '../js/music-engine.js';
@@ -55,7 +54,7 @@
           o.start(t); o.stop(t + 0.06);
         }
       } else {
-        renderAll(ctx, ctx.destination, { melody: kind === 'full' });
+        renderAll(ctx, ctx.destination);
       }
       return ctx.startRendering();
     }
@@ -70,9 +69,8 @@
       a.click();
       out.textContent = `Listo: ${name} (${buf.duration.toFixed(3)} s)`;
     }
-    document.getElementById('full').onclick = () => download('full', 'mision-sonrisa-guia-con-melodia.wav');
-    document.getElementById('nomel').onclick = () => download('nomel', 'mision-sonrisa-instrumental.wav');
-    document.getElementById('click').onclick = () => download('click', 'mision-sonrisa-claque.wav');
+    document.getElementById('full').onclick = () => download('full', 'escapa-banda-sonora.wav');
+    document.getElementById('click').onclick = () => download('click', 'escapa-claque.wav');
     window.__render = render;
     window.__toWav = toWav;
   </script>

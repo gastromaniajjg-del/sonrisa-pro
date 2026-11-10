@@ -1,5 +1,6 @@
-// Boca animada en SVG: 20 dientes de leche, cuadrante activo resaltado,
-// cepillo mostrando el movimiento correcto, burbujas y brillo progresivo.
+// Escáner de la boca en SVG: 28 dientes definitivos (11-12 años: incisivos, canino,
+// premolares y primeros y segundos molares), cuadrante activo resaltado, cepillo
+// mostrando el movimiento correcto, espuma y limpieza progresiva.
 // Vista espejo: el lado derecho del niño se dibuja a la derecha de la pantalla.
 
 import { SEGMENTS, SEGMENT_SECONDS } from './config.js';
@@ -14,18 +15,21 @@ const el = (name, attrs = {}, parent) => {
 
 // Dientes por cuadrante desde la línea media hacia fuera.
 const TOOTH_TYPES = [
-  { name: 'incisivo central', w: 15, h: 19 },
-  { name: 'incisivo lateral', w: 13, h: 17 },
-  { name: 'canino', w: 14, h: 18 },
-  { name: 'primera muela', w: 19, h: 18 },
-  { name: 'segunda muela', w: 22, h: 19 },
+  { name: 'incisivo central', w: 13, h: 18 },
+  { name: 'incisivo lateral', w: 11, h: 16 },
+  { name: 'canino', w: 12, h: 17 },
+  { name: 'primer premolar', w: 13, h: 15 },
+  { name: 'segundo premolar', w: 13, h: 15 },
+  { name: 'primer molar', w: 18, h: 17 },
+  { name: 'segundo molar', w: 17, h: 16 },
 ];
+const MOLAR_FROM = 3; // premolares y molares tienen corona plana
 
 const C = { x: 160, yU: 118, yL: 132, rx: 112, ry: 82 };
 
 function toothPosition(arch, side, i) {
   // Ángulo desde la línea media (0) hasta el fondo (~80°).
-  const steps = [0.1, 0.29, 0.5, 0.78, 1.12];
+  const steps = [0.07, 0.2, 0.34, 0.5, 0.67, 0.89, 1.13];
   const a = steps[i];
   const sx = side === 'right' ? 1 : -1;
   const x = C.x + sx * Math.sin(a) * C.rx;
@@ -43,11 +47,11 @@ export class Mouth {
     const defs = el('defs', {}, this.svg);
     defs.innerHTML = `
       <radialGradient id="gum" cx="50%" cy="50%" r="60%">
-        <stop offset="0%" stop-color="#ffc2cd"/><stop offset="100%" stop-color="#ff8fa6"/>
+        <stop offset="0%" stop-color="#5a2a35"/><stop offset="100%" stop-color="#3a1820"/>
       </radialGradient>
       <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
-        <stop offset="45%" stop-color="#ffffff" stop-opacity="0"/>
+        <stop offset="0%" stop-color="#e9feff" stop-opacity="1"/>
+        <stop offset="60%" stop-color="#7ff6ff" stop-opacity=".25"/>
       </linearGradient>
       <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
         <feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
@@ -57,7 +61,7 @@ export class Mouth {
     el('path', { d: this._archPath('upper'), fill: 'url(#gum)', class: 'gum' }, this.svg);
     el('path', { d: this._archPath('lower'), fill: 'url(#gum)', class: 'gum' }, this.svg);
     // Lengua
-    el('ellipse', { cx: C.x, cy: C.yL + 22, rx: 52, ry: 30, fill: '#ff7f98', opacity: 0.55 }, this.svg);
+    el('ellipse', { cx: C.x, cy: C.yL + 22, rx: 52, ry: 30, fill: '#7a3444', opacity: 0.5 }, this.svg);
 
     // Zonas resaltables (debajo de los dientes)
     this.zones = SEGMENTS.map((s) => {
@@ -68,15 +72,15 @@ export class Mouth {
     });
 
     // Etiquetas de lado
-    el('text', { x: 18, y: 125, class: 'side-label', 'text-anchor': 'start' }, this.svg).textContent = 'izquierda';
-    el('text', { x: 302, y: 125, class: 'side-label', 'text-anchor': 'end' }, this.svg).textContent = 'derecha';
+    el('text', { x: 14, y: 125, class: 'side-label', 'text-anchor': 'start' }, this.svg).textContent = 'IZQ';
+    el('text', { x: 306, y: 125, class: 'side-label', 'text-anchor': 'end' }, this.svg).textContent = 'DER';
 
     // Dientes
     this.teeth = SEGMENTS.map((s) =>
       TOOTH_TYPES.map((tt, i) => {
         const p = toothPosition(s.arch, s.side, i);
         const g = el('g', { transform: `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${p.rot.toFixed(1)})`, class: 'tooth' }, this.svg);
-        const molar = i >= 3;
+        const molar = i >= MOLAR_FROM;
         const hw = tt.w / 2;
         const hh = tt.h / 2;
         const d = molar
@@ -98,10 +102,10 @@ export class Mouth {
     this.brushMove = el('g', { class: 'brush-move' }, this.brushPos);
     this.brushMove.innerHTML = `
       <g class="brush-tilt">
-        <rect x="-6" y="-9" width="34" height="10" rx="3" fill="#ffffff" stroke="#9fd8ff" stroke-width="1.5"/>
-        <g fill="#cfefff">${Array.from({ length: 6 }, (_, i) => `<rect x="${-4 + i * 5}" y="-15" width="3" height="7" rx="1"/>`).join('')}</g>
-        <rect x="-6" y="-3" width="110" height="11" rx="5.5" fill="#35c3a8"/>
-        <rect x="40" y="-1" width="40" height="4" rx="2" fill="#ffffff" opacity=".45"/>
+        <rect x="-6" y="-9" width="34" height="10" rx="3" fill="#e8fbff" stroke="#4ff0ff" stroke-width="1.5"/>
+        <g fill="#bff8ff">${Array.from({ length: 6 }, (_, i) => `<rect x="${-4 + i * 5}" y="-15" width="3" height="7" rx="1"/>`).join('')}</g>
+        <rect x="-6" y="-3" width="72" height="11" rx="5.5" fill="#35c3a8"/>
+        <rect x="30" y="-1" width="28" height="4" rx="2" fill="#ffffff" opacity=".45"/>
       </g>`;
     this.brushPos.style.display = 'none';
 
@@ -161,7 +165,7 @@ export class Mouth {
       const p = i < idx ? 1 : i > idx ? 0 : (t - seg.start) / SEGMENT_SECONDS;
       q.forEach((tooth, k) => {
         // Cada diente se limpia un poco desfasado para que el brillo «avance».
-        const local = Math.max(0, Math.min(1, p * 1.25 - k * 0.05));
+        const local = Math.max(0, Math.min(1, p * 1.3 - k * 0.04));
         tooth.shine.setAttribute('opacity', (local * 0.95).toFixed(2));
         tooth.base.classList.toggle('clean', local > 0.6);
         const sparkOn = i < idx ? 0.9 : local > 0.95 ? 1 : 0;
@@ -177,8 +181,8 @@ export class Mouth {
     const q = this.teeth[seg.index];
     let target;
     let inward = 0;
-    if (step.id === 'muelas') target = q[4].p; // superficie de masticar de las muelas
-    else target = q[2].p; // zona del canino, centro del cuadrante
+    if (step.id === 'muelas') target = q[5].p; // superficie de masticar de los molares
+    else target = q[3].p; // centro del cuadrante
     if (step.id === 'dentro') inward = 1;
 
     // Hacia dentro = hacia el centro del arco.

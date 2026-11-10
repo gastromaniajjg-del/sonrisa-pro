@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#2f7bf6">
-  <meta name="description" content="La misión de la sonrisa: aprende a cepillarte los dientes con Denti en dos minutos.">
+  <meta name="theme-color" content="#14110a">
+  <meta name="description" content="La misión de la sonrisa: cepíllate los dientes y escapa de los pasillos en 2 minutos.">
   <title>La misión de la sonrisa</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="assets/icons/icon.svg" type="image/svg+xml">
@@ -12,25 +12,31 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
+  <canvas id="world" aria-hidden="true"></canvas>
+  <div class="vhs" aria-hidden="true"></div>
+
   <div id="app">
 
     <!-- INICIO -->
     <section class="screen active" id="screen-home" aria-labelledby="home-title">
       <header class="topbar">
-        <div class="stars-pill" aria-live="polite"><span aria-hidden="true">⭐</span> <b id="home-stars">0</b></div>
-        <button class="icon-btn" id="btn-settings" aria-label="Ajustes de sonido">⚙️</button>
+        <div class="pill" aria-live="polite" title="Fragmentos de mapa"><span aria-hidden="true">🗺️</span> <b id="home-stars">0</b></div>
+        <button class="icon-btn" id="btn-settings" aria-label="Audio">🔊</button>
       </header>
-      <div class="denti-slot denti-slot--big" id="home-denti"></div>
-      <h1 id="home-title">La misión de la sonrisa</h1>
-      <p class="sub">Dani y Denti, ¡dos minutos de cepillado!</p>
-      <button class="big-btn" id="btn-start">¡Empezar misión!</button>
-      <button class="soft-btn" id="btn-wardrobe">👕 Vestidor de Denti</button>
-      <p class="next-unlock" id="next-unlock"></p>
+      <div class="home-spacer"></div>
+      <div class="home-card">
+        <p class="rec"><span class="dot"></span> REC · CINTA 07</p>
+        <h1 id="home-title" class="glitch" data-text="ESCAPA EN 2:00">ESCAPA EN 2:00</h1>
+        <p class="sub">La misión de la sonrisa. Cuatro niveles, uno por zona de la boca. Cepíllate bien y encuentra la salida.</p>
+        <button class="big-btn" id="btn-start">Entrar</button>
+        <button class="soft-btn" id="btn-wardrobe">🛠️ Taller del dron</button>
+        <p class="next-unlock" id="next-unlock"></p>
+      </div>
     </section>
 
     <!-- CEPILLADO -->
     <section class="screen" id="screen-brush" aria-label="Cepillado">
-      <header class="brush-head">
+      <header class="hud-top">
         <div class="ring" id="ring" role="timer" aria-live="off">
           <svg viewBox="0 0 100 100" aria-hidden="true">
             <circle cx="50" cy="50" r="44" class="ring-bg"/>
@@ -40,73 +46,78 @@
           <span id="time-left">2:00</span>
         </div>
         <div class="zone-info">
-          <div class="zone-dots" id="zone-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="level-row"><span id="level-label" class="level">NIVEL 1</span><span class="zone-dots" id="zone-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span></div>
           <h2 id="zone-label" aria-live="polite">Arriba a la derecha</h2>
-          <p id="step-label" class="step-label">Coloca el cepillo</p>
+          <p id="step-label" class="step-label">Cepillo a 45° hacia la encía</p>
         </div>
       </header>
 
-      <div class="stage">
-        <div class="denti-slot denti-slot--side" id="brush-denti"></div>
+      <div class="brush-spacer"></div>
+
+      <div class="scanner">
+        <div class="scanner-head"><span>ESCÁNER DENTAL</span><span id="clean-pct">LIMPIEZA 0%</span></div>
         <div class="mouth-wrap" id="mouth"></div>
+        <p class="step-hint" id="step-hint">Colócalo y empieza suave</p>
       </div>
 
-      <p class="step-hint" id="step-hint">Inclinado hacia la encía</p>
-      <div class="lyrics" id="lyrics" aria-live="off"></div>
+      <div class="radio" id="radio" aria-live="off"><span class="radio-tag">📻 BASE</span> <span id="radio-text">…</span></div>
 
       <footer class="brush-controls">
-        <button class="soft-btn" id="btn-pause">⏸ Pausa</button>
-        <button class="soft-btn ghost" id="btn-quit">Salir</button>
+        <button class="soft-btn" id="btn-pause">Pausa</button>
+        <button class="soft-btn ghost" id="btn-quit">Abandonar</button>
       </footer>
-      <div class="zone-flash" id="zone-flash" aria-hidden="true"></div>
+      <div class="level-card" id="level-card" aria-hidden="true"></div>
     </section>
 
-    <!-- CELEBRACIÓN -->
+    <!-- SALIDA -->
     <section class="screen" id="screen-done" aria-labelledby="done-title">
-      <canvas id="confetti" aria-hidden="true"></canvas>
-      <div class="denti-slot denti-slot--big" id="done-denti"></div>
-      <h1 id="done-title">¡Misión cumplida!</h1>
-      <div class="star-award" aria-hidden="true">⭐</div>
-      <p class="sub" id="done-text">Has ganado una estrella.</p>
-      <div class="unlocked" id="unlocked" hidden></div>
-      <button class="big-btn" id="btn-home">Volver al inicio</button>
-      <button class="soft-btn" id="btn-wardrobe-2">👕 Vestir a Denti</button>
+      <div class="home-spacer"></div>
+      <div class="home-card done-card">
+        <h1 id="done-title">HAS ESCAPADO</h1>
+        <div class="award" aria-hidden="true">🗺️</div>
+        <p class="sub" id="done-text">Fragmento de mapa conseguido.</p>
+        <div class="unlocked" id="unlocked" hidden></div>
+        <button class="big-btn" id="btn-home">Volver</button>
+        <button class="soft-btn" id="btn-wardrobe-2">🛠️ Taller del dron</button>
+      </div>
     </section>
 
-    <!-- VESTIDOR -->
+    <!-- TALLER -->
     <section class="screen" id="screen-wardrobe" aria-labelledby="wardrobe-title">
       <header class="topbar">
         <button class="icon-btn" data-back aria-label="Volver">←</button>
-        <h2 id="wardrobe-title">Vestidor de Denti</h2>
-        <div class="stars-pill"><span aria-hidden="true">⭐</span> <b id="wardrobe-stars">0</b></div>
+        <h2 id="wardrobe-title">Taller del dron</h2>
+        <div class="pill"><span aria-hidden="true">🗺️</span> <b id="wardrobe-stars">0</b></div>
       </header>
-      <div class="denti-slot denti-slot--big" id="wardrobe-denti"></div>
+      <div class="hangar-spacer"></div>
       <ul class="acc-grid" id="acc-grid"></ul>
     </section>
 
-    <!-- AJUSTES -->
+    <!-- AUDIO -->
     <section class="screen" id="screen-settings" aria-labelledby="settings-title">
       <header class="topbar">
         <button class="icon-btn" data-back aria-label="Volver">←</button>
-        <h2 id="settings-title">Sonido</h2>
+        <h2 id="settings-title">Audio</h2>
         <span></span>
       </header>
-      <fieldset class="modes">
-        <legend>¿Qué quieres escuchar?</legend>
-        <label class="mode"><input type="radio" name="mode" value="cancion"><span><b>🎵 Canción y voz</b><small>Música, letra en pantalla y avisos de Denti</small></span></label>
-        <label class="mode"><input type="radio" name="mode" value="voz"><span><b>🗣️ Solo instrucciones de voz</b><small>Denti explica cada paso, sin música</small></span></label>
-        <label class="mode"><input type="radio" name="mode" value="instrumental"><span><b>🎹 Solo música instrumental</b><small>Sin voz. La campanita avisa del cambio de zona</small></span></label>
-      </fieldset>
-      <div class="vol">
-        <label for="vol-music">🎶 Volumen de la música</label>
-        <input type="range" id="vol-music" min="0" max="1" step="0.05">
+      <div class="panel-list">
+        <fieldset class="modes">
+          <legend>¿Qué quieres oír?</legend>
+          <label class="mode"><input type="radio" name="mode" value="musica-radio"><span><b>🎧 Música + radio</b><small>Banda sonora y la Base te guía por radio</small></span></label>
+          <label class="mode"><input type="radio" name="mode" value="radio"><span><b>📻 Solo radio</b><small>Solo las instrucciones, sin música</small></span></label>
+          <label class="mode"><input type="radio" name="mode" value="musica"><span><b>🎹 Solo música</b><small>Sin voz. Las instrucciones salen en pantalla y la alarma avisa del cambio de nivel</small></span></label>
+        </fieldset>
+        <div class="vol">
+          <label for="vol-music">Volumen de la música</label>
+          <input type="range" id="vol-music" min="0" max="1" step="0.05">
+        </div>
+        <div class="vol">
+          <label for="vol-voice">Volumen de la radio</label>
+          <input type="range" id="vol-voice" min="0" max="1" step="0.05">
+        </div>
+        <button class="soft-btn" id="btn-test-audio">▶ Probar 5 segundos</button>
+        <p class="audio-status" id="audio-status"></p>
       </div>
-      <div class="vol">
-        <label for="vol-voice">🗣️ Volumen de la voz</label>
-        <input type="range" id="vol-voice" min="0" max="1" step="0.05">
-      </div>
-      <button class="soft-btn" id="btn-test-audio">▶ Probar sonido</button>
-      <p class="audio-status" id="audio-status"></p>
     </section>
 
   </div>

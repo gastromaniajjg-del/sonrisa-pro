@@ -3,11 +3,11 @@
 // Reglas:
 //  · El temporizador manda. El audio se programa a partir de `timer.elapsed()`.
 //  · Todo el audio termina, como muy tarde, en el segundo 120 (fundido de 30 ms que acaba ahí).
-//  · Al completar, pausar o reiniciar se corta todo, haya terminado la canción o no.
+//  · Al completar, pausar o reiniciar se corta todo, haya terminado la música o no.
 //  · Si el reloj de audio se desvía más de 40 ms del temporizador, se recoloca.
 
 import { AUDIO_MODES, AUDIO_FILES, TOTAL_SECONDS } from './config.js';
-import { VOICE_CUES } from './song.js';
+import { RADIO_CUES } from './soundtrack.js';
 import { SynthMusic } from './music-engine.js';
 
 const DRIFT_TOLERANCE = 0.04;
@@ -20,12 +20,11 @@ export class AudioDirector {
    * @param {AudioDirector} [shareWith] reutiliza el contexto y los archivos de otro director (prueba de sonido)
    */
   constructor(timer, settings, shareWith = null) {
-    this.shareWith = shareWith;
     this.timer = timer;
-    this.settings = { mode: AUDIO_MODES.CANCION, musicVolume: 0.8, voiceVolume: 1, ...settings };
+    this.shareWith = shareWith;
+    this.settings = { mode: AUDIO_MODES.MUSICA_RADIO, musicVolume: 0.8, voiceVolume: 1, ...settings };
     this.ctx = null;
-    this.assets = { instrumental: null, vocal: null, voice: new Map() };
-    this.available = { instrumental: false, vocal: false, voz: [] };
+    this.assets = { instrumental: null, voice: new Map() };
     this._sources = [];
     this._firedCues = new Set();
     this._speechTimer = null;
@@ -62,37 +61,42 @@ export class AudioDirector {
   }
 
   _buildGraph() {
-    this.musicGain = this.ctx.createGain();
-    this.voiceGain = this.ctx.createGain();
-    this.duckGain = this.ctx.createGain();
-    this.musicGain.connect(this.duckGain).connect(this.ctx.destination);
-    this.voiceGain.connect(this.ctx.destination);
+    const ctx = this.ctx;
+    this.musicGain = ctx.createGain();
+    this.duckGain = ctx.createGain();
+    this.voiceGain = ctx.createGain();
+    this.musicGain.connect(this.duckGain).connect(ctx.destination);
+    this.voiceGain.connect(ctx.destination);
+    // Cadena «walkie-talkie» para las frases grabadas: banda estrecha + algo de saturación.
+    this.radioIn = ctx.createBiquadFilter();
+    this.radioIn.type = 'highpass';
+    this.radioIn.frequency.value = 350;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 3400;
+    const shaper = ctx.createWaveShaper();
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) { const x = (i / 255) * 2 - 1; curve[i] = Math.tanh(x * 2.2) / Math.tanh(2.2); }
+    shaper.curve = curve;
+    this.radioIn.connect(lp).connect(shaper).connect(this.voiceGain);
     this.applyVolumes();
-    this.synth = new SynthMusic(this.ctx, this.musicGain);
-  }
-
-  /** Desconecta este director (solo para directores que comparten contexto). */
-  dispose() {
-    this.stopAll();
-    setTimeout(() => {
-      try { this.musicGain.disconnect(); this.duckGain.disconnect(); this.voiceGain.disconnect(); } catch { /* nada */ }
-    }, 60);
+    this.synth = new SynthMusic(ctx, this.musicGain);
   }
 
   async _loadAssets() {
+    let available;
     try {
       const res = await fetch('assets/audio/manifest.json', { cache: 'no-cache' });
       if (!res.ok) return;
-      this.available = { ...this.available, ...(await res.json()) };
+      available = await res.json();
     } catch { return; }
     const load = async (url) => {
       const r = await fetch(url);
       if (!r.ok) throw new Error(url);
       return this.ctx.decodeAudioData(await r.arrayBuffer());
     };
-    if (this.available.instrumental) this.assets.instrumental = await load(AUDIO_FILES.instrumental).catch(() => null);
-    if (this.available.vocal) this.assets.vocal = await load(AUDIO_FILES.vocal).catch(() => null);
-    for (const id of this.available.voz || []) {
+    if (available.instrumental) this.assets.instrumental = await load(AUDIO_FILES.instrumental).catch(() => null);
+    for (const id of available.radio || []) {
       const buf = await load(`${AUDIO_FILES.voiceDir}${id}.mp3`).catch(() => null);
       if (buf) this.assets.voice.set(id, buf);
     }
@@ -101,8 +105,7 @@ export class AudioDirector {
   _pickVoice() {
     if (!('speechSynthesis' in window)) return;
     const choose = () => {
-      const voices = speechSynthesis.getVoices();
-      const es = voices.filter((v) => v.lang?.toLowerCase().startsWith('es'));
+      const es = speechSynthesis.getVoices().filter((v) => v.lang?.toLowerCase().startsWith('es'));
       // Preferimos voces de España y locales (las locales funcionan sin conexión).
       this._esVoice =
         es.find((v) => v.lang === 'es-ES' && v.localService) ||
@@ -133,8 +136,12 @@ export class AudioDirector {
     this.voiceGain.gain.setTargetAtTime(this.settings.voiceVolume, t, 0.03);
   }
 
-  get hasSungVocal() {
-    return !!this.assets.vocal;
+  get musicOn() {
+    return this.settings.mode !== AUDIO_MODES.RADIO;
+  }
+
+  get radioOn() {
+    return this.settings.mode !== AUDIO_MODES.MUSICA;
   }
 
   // ── Reproducción ───────────────────────────────────────────────────────────
@@ -143,85 +150,87 @@ export class AudioDirector {
   _begin(elapsed) {
     this.stopAll();
     if (!this.ctx || elapsed >= TOTAL_SECONDS) return;
-    const mode = this.settings.mode;
     // En el instante ctx+LATENCIA el temporizador marcará elapsed+LATENCIA.
     this._anchor = { ctx: this.ctx.currentTime + START_LATENCY, song: elapsed + START_LATENCY };
-    // Los cues ya pasados no se repiten al reanudar.
-    this._firedCues = new Set(VOICE_CUES.filter((c) => c.t < elapsed - 0.25).map((c) => c.id));
+    // Los mensajes ya pasados no se repiten al reanudar.
+    this._firedCues = new Set(RADIO_CUES.filter((c) => c.t < elapsed - 0.25).map((c) => c.id));
 
-    if (mode === AUDIO_MODES.CANCION || mode === AUDIO_MODES.INSTRUMENTAL) {
-      if (this.assets.instrumental) {
-        this._playBuffer(this.assets.instrumental, this.musicGain, elapsed);
-      } else {
-        // Con pista cantada grabada, la melodía la lleva la voz: el sintetizador no la dobla.
-        const melody = !(mode === AUDIO_MODES.CANCION && this.assets.vocal);
-        this.synth.melody = melody;
-        this.synth.play(elapsed, this._songToCtx);
-      }
-    }
-    if (mode === AUDIO_MODES.CANCION && this.assets.vocal) {
-      this._playBuffer(this.assets.vocal, this.voiceGain, elapsed);
+    if (this.musicOn) {
+      if (this.assets.instrumental) this._playBuffer(this.assets.instrumental, this.musicGain);
+      else this.synth.play(elapsed, this._songToCtx);
     }
   }
 
-  _playBuffer(buffer, out, fromSong) {
+  _playBuffer(buffer, out) {
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
     const g = this.ctx.createGain();
     src.connect(g).connect(out);
     const startCtx = this._anchor.ctx;
-    fromSong = this._anchor.song;
     const endCtx = this._songToCtx(TOTAL_SECONDS);
     g.gain.setValueAtTime(1, endCtx - 0.03);
     g.gain.linearRampToValueAtTime(0, endCtx);
-    src.start(startCtx, fromSong); // offset = segundo de canción donde estamos
+    src.start(startCtx, this._anchor.song); // empieza en el segundo donde está el temporizador
     src.stop(endCtx); // corte duro en el segundo 120, aunque el archivo dure más
-    this._sources.push({ src, g, fromSong, startCtx });
+    this._sources.push({ src, g });
   }
 
   _onTick(elapsed) {
     if (!this.ctx || !this._anchor || this.timer.state !== 'running') return;
 
     // 1) Control de desfase entre reloj de audio y temporizador.
-    const expectedCtx = this._songToCtx(elapsed);
-    const drift = this.ctx.currentTime - expectedCtx;
+    const drift = this.ctx.currentTime - this._songToCtx(elapsed);
     if (Math.abs(drift) > DRIFT_TOLERANCE && this.ctx.currentTime > this._anchor.ctx) {
       if (this._sources.some((s) => !s.voice)) {
-        // Archivos de audio: se recolocan para volver a coincidir.
-        this._begin(elapsed);
+        this._begin(elapsed); // archivo de audio: se recoloca
         return;
       }
       this._anchor = { ctx: this.ctx.currentTime, song: elapsed };
       this.synth.retime(this._songToCtx);
     }
 
-    // 2) Cues de voz.
-    const mode = this.settings.mode;
-    if (mode === AUDIO_MODES.INSTRUMENTAL) return;
-    if (mode === AUDIO_MODES.CANCION && this.assets.vocal) return; // la letra cantada ya avisa
-    for (const cue of VOICE_CUES) {
+    // 2) Mensajes de radio.
+    if (!this.radioOn) return;
+    for (const cue of RADIO_CUES) {
       if (cue.t > elapsed) break;
-      if (this._firedCues.has(cue.id) || !cue.modes.includes(mode)) continue;
+      if (this._firedCues.has(cue.id)) continue;
       this._firedCues.add(cue.id);
       if (elapsed - cue.t < 0.5) this._speak(cue, elapsed);
     }
   }
 
+  /** Chasquido de «pulsar para hablar». */
+  _squelch(t) {
+    const len = Math.floor(this.ctx.sampleRate * 0.12);
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    const g = this.ctx.createGain();
+    g.gain.value = 0.18;
+    src.connect(g).connect(this.radioIn);
+    src.start(t);
+    this._sources.push({ src, voice: true });
+  }
+
   _speak(cue, elapsed) {
-    // Nunca más allá del siguiente cue ni del segundo 120.
+    // Nunca más allá del siguiente mensaje ni del segundo 120.
     const budget = Math.min(cue.maxSeconds, TOTAL_SECONDS - elapsed) - 0.1;
     if (budget <= 0.3) return;
+    const duck = this.musicOn;
+    const t = this.ctx.currentTime;
+    this._squelch(t);
     const clip = this.assets.voice.get(cue.id);
-    const duck = this.settings.mode === AUDIO_MODES.CANCION;
     if (clip) {
       const src = this.ctx.createBufferSource();
       src.buffer = clip;
-      src.connect(this.voiceGain);
-      const t = this.ctx.currentTime;
-      src.start(t);
-      src.stop(t + Math.min(budget, clip.duration));
+      src.connect(this.radioIn);
+      const len = Math.min(budget - 0.1, clip.duration);
+      src.start(t + 0.1);
+      src.stop(t + 0.1 + len);
       this._sources.push({ src, voice: true });
-      if (duck) this._duck(t, Math.min(budget, clip.duration));
+      if (duck) this._duck(t, len + 0.1);
       return;
     }
     if (!('speechSynthesis' in window)) return;
@@ -229,14 +238,14 @@ export class AudioDirector {
     const u = new SpeechSynthesisUtterance(cue.text);
     u.lang = 'es-ES';
     if (this._esVoice) u.voice = this._esVoice;
-    u.rate = 1.05;
-    u.pitch = 1.25; // voz algo más aguda y simpática
+    u.rate = 1.08;
+    u.pitch = 0.9;
     u.volume = Math.min(1, this.settings.voiceVolume);
     if (duck) {
       u.onstart = () => this._duck(this.ctx.currentTime, null);
       u.onend = () => this._unduck();
     }
-    speechSynthesis.speak(u);
+    setTimeout(() => speechSynthesis.speak(u), 100);
     clearTimeout(this._speechTimer);
     this._speechTimer = setTimeout(() => { speechSynthesis.cancel(); this._unduck(); }, budget * 1000);
   }
@@ -244,13 +253,21 @@ export class AudioDirector {
   _duck(t, dur) {
     const g = this.duckGain.gain;
     g.cancelScheduledValues(t);
-    g.setTargetAtTime(0.45, t, 0.05);
+    g.setTargetAtTime(0.4, t, 0.05);
     if (dur != null) g.setTargetAtTime(1, t + dur, 0.15);
   }
 
   _unduck() {
     if (!this.ctx) return;
     this.duckGain.gain.setTargetAtTime(1, this.ctx.currentTime, 0.15);
+  }
+
+  /** Desconecta este director (solo para directores que comparten contexto). */
+  dispose() {
+    this.stopAll();
+    setTimeout(() => {
+      try { this.musicGain.disconnect(); this.duckGain.disconnect(); this.voiceGain.disconnect(); } catch { /* nada */ }
+    }, 60);
   }
 
   /** Corta todo el audio inmediatamente. */

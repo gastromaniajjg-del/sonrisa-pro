@@ -1,9 +1,9 @@
-// Motor de música original sintetizada en tiempo real con Web Audio.
+// Motor de la banda sonora original, sintetizada en tiempo real con Web Audio.
 // No usa muestras ni archivos externos: funciona sin conexión desde el primer momento.
 // Sirve para un AudioContext normal (reproducción) o un OfflineAudioContext (exportar WAV).
 
 import { TOTAL_SECONDS } from './config.js';
-import { buildArrangement } from './song.js';
+import { buildArrangement } from './soundtrack.js';
 
 const midiToHz = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -31,75 +31,179 @@ function env(gainParam, t, peak, attack, dur, release = 0.05) {
 
 // ── Instrumentos ─────────────────────────────────────────────────────────────
 const INSTRUMENTS = {
-  lead(ctx, out, t, e, end) {
-    // Melodía: onda cuadrada suave + triángulo una octava arriba, con vibrato ligero.
+  hum(ctx, out, t, e, end) {
+    // Zumbido de fluorescente: 50 Hz y armónicos, con un leve temblor de intensidad.
     const g = ctx.createGain();
     const f = ctx.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = 2600;
-    const o1 = ctx.createOscillator();
-    const o2 = ctx.createOscillator();
-    o1.type = 'square';
-    o2.type = 'triangle';
-    o1.frequency.value = midiToHz(e.note);
-    o2.frequency.value = midiToHz(e.note + 12);
-    const g2 = ctx.createGain();
-    g2.gain.value = 0.35;
+    f.type = 'bandpass';
+    f.frequency.value = 200;
+    f.Q.value = 0.7;
+    const stop = Math.min(end, t + e.dur);
+    [50, 100, 150, 200].forEach((hz, i) => {
+      const o = ctx.createOscillator();
+      o.type = i === 0 ? 'sine' : 'sawtooth';
+      o.frequency.value = hz;
+      const og = ctx.createGain();
+      og.gain.value = [1, 0.35, 0.12, 0.08][i];
+      o.connect(og).connect(f);
+      o.start(t);
+      o.stop(stop);
+    });
     const lfo = ctx.createOscillator();
     const lfoG = ctx.createGain();
-    lfo.frequency.value = 5.5;
-    lfoG.gain.value = 3;
-    lfo.connect(lfoG).connect(o1.frequency);
-    o1.connect(f);
-    o2.connect(g2).connect(f);
+    lfo.frequency.value = 0.23 + e.level * 0.11;
+    lfoG.gain.value = 0.006 * e.vel;
+    lfo.connect(lfoG).connect(g.gain);
+    lfo.start(t);
+    lfo.stop(stop);
     f.connect(g).connect(out);
-    env(g.gain, t, 0.15 * e.vel, 0.012, e.dur, 0.08);
-    const stop = Math.min(end, t + e.dur + 0.2);
-    [o1, o2, lfo].forEach((o) => { o.start(t); o.stop(stop); });
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.022 * e.vel, t + 1.5);
+    g.gain.setValueAtTime(0.022 * e.vel, Math.max(t + 1.5, stop - 0.4));
+    g.gain.linearRampToValueAtTime(0.0001, stop);
+  },
+
+  sub(ctx, out, t, e, end) {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.value = midiToHz(e.note);
+    o.connect(g).connect(out);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.16 * e.vel, t + 0.3);
+    g.gain.setTargetAtTime(0.0001, t + e.dur - 0.2, 0.07);
+    o.start(t);
+    o.stop(Math.min(end, t + e.dur));
+  },
+
+  arp(ctx, out, t, e, end) {
+    // Arpegio electrónico: cuadrada filtrada; el filtro se abre en cada nivel.
+    const o = ctx.createOscillator();
+    const f = ctx.createBiquadFilter();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = midiToHz(e.note);
+    f.type = 'lowpass';
+    f.Q.value = 4;
+    const cut = 700 + e.level * 650;
+    f.frequency.setValueAtTime(cut * 2, t);
+    f.frequency.exponentialRampToValueAtTime(cut, t + 0.08);
+    o.connect(f).connect(g).connect(out);
+    env(g.gain, t, 0.05 * e.vel, 0.004, e.dur, 0.03);
+    o.start(t);
+    o.stop(Math.min(end, t + e.dur + 0.06));
   },
 
   bass(ctx, out, t, e, end) {
     const o = ctx.createOscillator();
-    const sub = ctx.createOscillator();
     const f = ctx.createBiquadFilter();
     const g = ctx.createGain();
     o.type = 'sawtooth';
-    sub.type = 'sine';
-    o.frequency.value = midiToHz(e.note);
-    sub.frequency.value = midiToHz(e.note);
+    o.frequency.value = midiToHz(e.note + 12);
     f.type = 'lowpass';
-    f.Q.value = 6;
-    f.frequency.setValueAtTime(900, t);
-    f.frequency.exponentialRampToValueAtTime(220, t + 0.18);
-    o.connect(f);
-    sub.connect(f);
-    f.connect(g).connect(out);
-    env(g.gain, t, 0.22 * e.vel, 0.005, e.dur, 0.04);
-    const stop = Math.min(end, t + e.dur + 0.1);
-    o.start(t); sub.start(t); o.stop(stop); sub.stop(stop);
+    f.Q.value = 5;
+    f.frequency.setValueAtTime(800, t);
+    f.frequency.exponentialRampToValueAtTime(180, t + 0.15);
+    o.connect(f).connect(g).connect(out);
+    env(g.gain, t, 0.16 * e.vel, 0.005, e.dur, 0.03);
+    o.start(t);
+    o.stop(Math.min(end, t + e.dur + 0.05));
   },
 
   pad(ctx, out, t, e, end) {
+    // Acordes de fondo oscuros; más abiertos a medida que suben los niveles.
     const g = ctx.createGain();
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
-    f.frequency.value = 1400;
+    f.frequency.value = 500 + (e.level ?? 0) * 260 + (e.vel > 0.85 ? 1500 : 0);
     f.connect(g).connect(out);
     const stop = Math.min(end, t + e.dur + 0.3);
     e.notes.forEach((n, i) => {
-      [-6, 6].forEach((detune) => {
+      [-8, 8].forEach((detune) => {
         const o = ctx.createOscillator();
         o.type = 'sawtooth';
         o.frequency.value = midiToHz(n);
-        o.detune.value = detune + i;
+        o.detune.value = detune + i * 2;
         o.connect(f);
         o.start(t);
         o.stop(stop);
       });
     });
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.018 * e.vel, t + 0.25);
-    g.gain.setTargetAtTime(0.0001, t + e.dur - 0.05, 0.08);
+    g.gain.linearRampToValueAtTime(0.03 * e.vel, t + 0.5);
+    g.gain.setTargetAtTime(0.0001, t + e.dur - 0.1, 0.1);
+  },
+
+  shimmer(ctx, out, t, e, end) {
+    // Acorde final luminoso: la «luz de la salida».
+    const g = ctx.createGain();
+    g.connect(out);
+    const stop = Math.min(end, t + e.dur);
+    e.notes.forEach((n, i) => {
+      const o = ctx.createOscillator();
+      o.type = 'triangle';
+      o.frequency.value = midiToHz(n);
+      o.detune.value = (i - 1.5) * 4;
+      o.connect(g);
+      o.start(t);
+      o.stop(stop);
+    });
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.05 * e.vel, t + 0.4);
+    g.gain.setValueAtTime(0.05 * e.vel, Math.max(t + 0.4, stop - 0.5));
+    g.gain.linearRampToValueAtTime(0.0001, stop);
+  },
+
+  static(ctx, out, t, e, end) {
+    // Estática de radio.
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 2200;
+    f.Q.value = 0.8;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.12 * e.vel, t);
+    g.gain.setValueAtTime(0.03 * e.vel, t + e.dur * 0.3);
+    g.gain.linearRampToValueAtTime(0.0001, t + e.dur);
+    src.connect(f).connect(g).connect(out);
+    src.start(t, (t * 1.7) % 0.5);
+    src.stop(Math.min(end, t + e.dur));
+  },
+
+  alarm(ctx, out, t, e, end) {
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'square';
+    o.frequency.value = midiToHz(e.note);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 2500;
+    o.connect(f).connect(g).connect(out);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.05 * e.vel, t + 0.01);
+    g.gain.setValueAtTime(0.05 * e.vel, t + e.dur - 0.03);
+    g.gain.linearRampToValueAtTime(0.0001, t + e.dur);
+    o.start(t);
+    o.stop(Math.min(end, t + e.dur));
+  },
+
+  zap(ctx, out, t, e, end) {
+    // Chasquido de fluorescente que falla.
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx);
+    const f = ctx.createBiquadFilter();
+    f.type = 'highpass';
+    f.frequency.value = 3000;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    [0, 0.06, 0.09, 0.17].forEach((d) => {
+      g.gain.setValueAtTime(0.09 * e.vel, t + d);
+      g.gain.setValueAtTime(0.0001, t + d + 0.025);
+    });
+    src.connect(f).connect(g).connect(out);
+    src.start(t, (t * 2.3) % 0.5);
+    src.stop(Math.min(end, t + e.dur));
   },
 
   kick(ctx, out, t, e, end) {
@@ -113,27 +217,6 @@ const INSTRUMENTS = {
     o.connect(g).connect(out);
     o.start(t);
     o.stop(Math.min(end, t + 0.3));
-  },
-
-  clap(ctx, out, t, e, end) {
-    // Palmas: tres ráfagas de ruido muy seguidas + cola.
-    const src = ctx.createBufferSource();
-    src.buffer = noiseBuffer(ctx);
-    const f = ctx.createBiquadFilter();
-    f.type = 'bandpass';
-    f.frequency.value = 1500;
-    f.Q.value = 0.9;
-    const g = ctx.createGain();
-    const v = 0.38 * e.vel;
-    g.gain.setValueAtTime(0.0001, t);
-    [0, 0.012, 0.024].forEach((d) => {
-      g.gain.setValueAtTime(v, t + d);
-      g.gain.exponentialRampToValueAtTime(v * 0.25, t + d + 0.01);
-    });
-    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
-    src.connect(f).connect(g).connect(out);
-    src.start(t, (t * 7.3) % 0.5);
-    src.stop(Math.min(end, t + 0.22));
   },
 
   snare(ctx, out, t, e, end) {
@@ -195,7 +278,7 @@ const INSTRUMENTS = {
     modG.gain.exponentialRampToValueAtTime(1, t + e.dur);
     mod.connect(modG).connect(car.frequency);
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.linearRampToValueAtTime(0.09 * e.vel, t + 0.005);
+    g.gain.linearRampToValueAtTime(0.07 * e.vel, t + 0.005);
     g.gain.exponentialRampToValueAtTime(0.0001, t + e.dur);
     car.connect(g).connect(out);
     const stop = Math.min(end, t + e.dur);
@@ -223,10 +306,9 @@ function limiter(ctx, destination) {
  * mediante `songToCtx(t)`. Así el temporizador sigue mandando.
  */
 export class SynthMusic {
-  constructor(ctx, destination, { melody = true } = {}) {
+  constructor(ctx, destination) {
     this.ctx = ctx;
     this.destination = destination;
-    this.melody = melody;
     this.bus = null;
     this._timer = null;
   }
@@ -255,7 +337,6 @@ export class SynthMusic {
         const at = this._songToCtx(e.t);
         if (at > horizonCtx) break;
         i++;
-        if (e.type === 'lead' && !this.melody) continue;
         if (at + e.dur < ctx.currentTime) continue; // ya pasó
         INSTRUMENTS[e.type](ctx, bus, Math.max(at, ctx.currentTime), e, this._songToCtx(TOTAL_SECONDS));
       }
@@ -291,13 +372,12 @@ export class SynthMusic {
 }
 
 /** Renderiza la pista completa (120 s) en un OfflineAudioContext. */
-export function renderAll(ctx, destination, { melody = true } = {}) {
+export function renderAll(ctx, destination) {
   const bus = ctx.createGain();
   bus.connect(limiter(ctx, destination));
   bus.gain.setValueAtTime(1, TOTAL_SECONDS - 0.03);
   bus.gain.linearRampToValueAtTime(0, TOTAL_SECONDS);
   for (const e of ARRANGEMENT) {
-    if (e.type === 'lead' && !melody) continue;
     INSTRUMENTS[e.type](ctx, bus, e.t, e, TOTAL_SECONDS);
   }
 }

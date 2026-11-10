@@ -1,12 +1,12 @@
-// Configuración central de «La misión de la sonrisa».
-// Todo lo que depende del tiempo sale de aquí: temporizador, música, voz y animaciones.
+// Configuración central de «La misión de la sonrisa» (versión «Escapa en 2 minutos»).
+// Todo lo que depende del tiempo sale de aquí: temporizador, música, radio y escenario.
 
 export const TOTAL_SECONDS = 120;
 export const SEGMENT_SECONDS = 30;
 
-// 128 pulsaciones por minuto → 1 compás (4 tiempos) = 1,875 s.
-// 16 compases = 30 s exactos, así que cada cuadrante dura justo 16 compases
-// y cada frase musical de 4 compases dura 7,5 s.
+// Rejilla musical a 128 pulsaciones por minuto → 1 compás = 1,875 s.
+// 16 compases = 30 s exactos: cada nivel (cuadrante) dura justo 16 compases
+// y cada paso de 4 compases dura 7,5 s.
 export const BPM = 128;
 export const BEAT_SECONDS = 60 / BPM; // 0,46875
 export const BAR_SECONDS = BEAT_SECONDS * 4; // 1,875
@@ -14,22 +14,22 @@ export const BARS_PER_SEGMENT = 16;
 export const PHRASE_BARS = 4;
 export const PHRASE_SECONDS = PHRASE_BARS * BAR_SECONDS; // 7,5
 
-// Orden clásico de cepillado. «derecha/izquierda» son las del niño.
-// El dibujo de la boca se muestra en «vista espejo»: el lado derecho del niño
-// aparece a la derecha de la pantalla, igual que cuando se mira en un espejo.
+// Cada cuadrante de la boca es un nivel. «derecha/izquierda» son las de Dani.
+// El escáner de la boca se dibuja en «vista espejo»: su lado derecho aparece a la
+// derecha de la pantalla, igual que cuando se mira en un espejo.
 export const SEGMENTS = [
-  { id: 'sup-der', index: 0, arch: 'upper', side: 'right', label: 'Arriba a la derecha', start: 0 },
-  { id: 'sup-izq', index: 1, arch: 'upper', side: 'left', label: 'Arriba a la izquierda', start: 30 },
-  { id: 'inf-izq', index: 2, arch: 'lower', side: 'left', label: 'Abajo a la izquierda', start: 60 },
-  { id: 'inf-der', index: 3, arch: 'lower', side: 'right', label: 'Abajo a la derecha', start: 90 },
-].map((s) => ({ ...s, end: s.start + SEGMENT_SECONDS }));
+  { id: 'sup-der', index: 0, arch: 'upper', side: 'right', label: 'Arriba a la derecha', level: 'Nivel 1', theme: 'oficinas' },
+  { id: 'sup-izq', index: 1, arch: 'upper', side: 'left', label: 'Arriba a la izquierda', level: 'Nivel 2', theme: 'sotano' },
+  { id: 'inf-izq', index: 2, arch: 'lower', side: 'left', label: 'Abajo a la izquierda', level: 'Nivel 3', theme: 'azulejos' },
+  { id: 'inf-der', index: 3, arch: 'lower', side: 'right', label: 'Abajo a la derecha', level: 'Nivel 4', theme: 'emergencia' },
+].map((s, i) => ({ ...s, start: i * SEGMENT_SECONDS, end: (i + 1) * SEGMENT_SECONDS }));
 
-// Cada cuadrante se divide en 4 pasos de 7,5 s que coinciden con las frases de la canción.
+// Cada nivel se divide en 4 pasos de 7,5 s que coinciden con las frases musicales.
 export const STEPS = [
-  { id: 'zona', label: 'Coloca el cepillo', brush: 'colocar', hint: 'Inclinado hacia la encía' },
-  { id: 'fuera', label: 'Circulitos por fuera', brush: 'circulos-fuera', hint: 'Suave, sin apretar' },
-  { id: 'dentro', label: 'Ahora por dentro', brush: 'circulos-dentro', hint: 'Cada diente, despacito' },
-  { id: 'muelas', label: 'Muelas: adelante y atrás', brush: 'adelante-atras', hint: 'Por encima de las muelas' },
+  { id: 'zona', label: 'Cepillo a 45° hacia la encía', brush: 'colocar', hint: 'Colócalo y empieza suave' },
+  { id: 'fuera', label: 'Círculos por fuera', brush: 'circulos-fuera', hint: 'Pequeños, sin apretar' },
+  { id: 'dentro', label: 'Cara interna', brush: 'circulos-dentro', hint: 'Diente a diente' },
+  { id: 'muelas', label: 'Muelas: adelante y atrás', brush: 'adelante-atras', hint: 'Por encima, donde se mastica' },
 ];
 
 export function segmentAt(t) {
@@ -38,21 +38,20 @@ export function segmentAt(t) {
 }
 
 export function stepAt(t) {
-  const within = Math.max(0, t) % SEGMENT_SECONDS;
+  const within = Math.max(0, Math.min(t, TOTAL_SECONDS - 1e-9)) % SEGMENT_SECONDS;
   const i = Math.min(STEPS.length - 1, Math.floor(within / PHRASE_SECONDS));
   return STEPS[i];
 }
 
 export const AUDIO_MODES = {
-  CANCION: 'cancion', // canción (letra) + voz
-  VOZ: 'voz', // solo instrucciones habladas
-  INSTRUMENTAL: 'instrumental', // solo música
+  MUSICA_RADIO: 'musica-radio', // música + instrucciones por radio
+  RADIO: 'radio', // solo instrucciones por radio
+  MUSICA: 'musica', // solo música (las instrucciones se leen en pantalla)
 };
 
 // Recursos de audio grabados (opcionales). Si existen, sustituyen a la síntesis.
 // Ver assets/audio/README.md para las especificaciones exactas.
 export const AUDIO_FILES = {
-  instrumental: 'assets/audio/cancion-instrumental.mp3',
-  vocal: 'assets/audio/cancion-voz.mp3',
-  voiceDir: 'assets/audio/voz/',
+  instrumental: 'assets/audio/banda-sonora.mp3',
+  voiceDir: 'assets/audio/radio/',
 };
