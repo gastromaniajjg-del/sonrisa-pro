@@ -3,7 +3,6 @@
 // Sirve para un AudioContext normal (reproducción) o un OfflineAudioContext (exportar WAV).
 
 import { TOTAL_SECONDS } from './config.js';
-import { buildArrangement } from './soundtrack.js';
 
 const midiToHz = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -31,6 +30,116 @@ function env(gainParam, t, peak, attack, dur, release = 0.05) {
 
 // ── Instrumentos ─────────────────────────────────────────────────────────────
 const INSTRUMENTS = {
+
+  lead(ctx, out, t, e, end) {
+    // Melodía: cuadrada suave + triángulo una octava arriba, con vibrato ligero.
+    const g = ctx.createGain();
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 2600;
+    const o1 = ctx.createOscillator();
+    const o2 = ctx.createOscillator();
+    o1.type = e.wave || 'square';
+    o2.type = 'triangle';
+    o1.frequency.value = midiToHz(e.note);
+    o2.frequency.value = midiToHz(e.note + 12);
+    const g2 = ctx.createGain();
+    g2.gain.value = 0.35;
+    const lfo = ctx.createOscillator();
+    const lfoG = ctx.createGain();
+    lfo.frequency.value = 5.5;
+    lfoG.gain.value = 3;
+    lfo.connect(lfoG).connect(o1.frequency);
+    o1.connect(f);
+    o2.connect(g2).connect(f);
+    f.connect(g).connect(out);
+    env(g.gain, t, 0.15 * e.vel, 0.012, e.dur, 0.08);
+    const stop = Math.min(end, t + e.dur + 0.2);
+    [o1, o2, lfo].forEach((o) => { o.start(t); o.stop(stop); });
+  },
+
+  clap(ctx, out, t, e, end) {
+    // Palmas: tres ráfagas de ruido muy seguidas + cola.
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 1500;
+    f.Q.value = 0.9;
+    const g = ctx.createGain();
+    const v = 0.38 * e.vel;
+    g.gain.setValueAtTime(0.0001, t);
+    [0, 0.012, 0.024].forEach((d) => {
+      g.gain.setValueAtTime(v, t + d);
+      g.gain.exponentialRampToValueAtTime(v * 0.25, t + d + 0.01);
+    });
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    src.connect(f).connect(g).connect(out);
+    src.start(t, (t * 7.3) % 0.5);
+    src.stop(Math.min(end, t + 0.22));
+  },
+
+  tom(ctx, out, t, e, end) {
+    // Tambor grave (dinosaurios, estadio).
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    const hz = midiToHz(e.note || 45);
+    o.frequency.setValueAtTime(hz * 1.6, t);
+    o.frequency.exponentialRampToValueAtTime(hz, t + 0.08);
+    g.gain.setValueAtTime(0.35 * e.vel, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    o.connect(g).connect(out);
+    o.start(t);
+    o.stop(Math.min(end, t + 0.36));
+  },
+
+  waves(ctx, out, t, e, end) {
+    // Olas / agua: ruido filtrado que sube y baja lentamente.
+    const src = ctx.createBufferSource();
+    src.buffer = noiseBuffer(ctx);
+    src.loop = true;
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = e.cutoff || 600;
+    const g = ctx.createGain();
+    const stop = Math.min(end, t + e.dur);
+    const lfo = ctx.createOscillator();
+    const lfoG = ctx.createGain();
+    lfo.frequency.value = e.rate || 0.12;
+    lfoG.gain.value = 0.02 * e.vel;
+    lfo.connect(lfoG).connect(g.gain);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.03 * e.vel, t + 2);
+    g.gain.setValueAtTime(0.03 * e.vel, Math.max(t + 2, stop - 0.5));
+    g.gain.linearRampToValueAtTime(0.0001, stop);
+    src.connect(f).connect(g).connect(out);
+    src.start(t);
+    lfo.start(t);
+    src.stop(stop);
+    lfo.stop(stop);
+  },
+
+  crowd(ctx, out, t, e, end) {
+    // Murmullo de grada: ruido de banda media con ondulación.
+    INSTRUMENTS.waves(ctx, out, t, { ...e, cutoff: 1400, rate: 0.35 }, end);
+  },
+
+  chirp(ctx, out, t, e, end) {
+    // Pajarito / luciérnaga / sonar: barrido corto agudo.
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    const hz = midiToHz(e.note || 96);
+    o.frequency.setValueAtTime(hz, t);
+    o.frequency.exponentialRampToValueAtTime(hz * (e.up ? 1.5 : 0.7), t + e.dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(0.04 * e.vel, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + e.dur);
+    o.connect(g).connect(out);
+    o.start(t);
+    o.stop(Math.min(end, t + e.dur));
+  },
   hum(ctx, out, t, e, end) {
     // Zumbido de fluorescente: 50 Hz y armónicos, con un leve temblor de intensidad.
     const g = ctx.createGain();
@@ -81,11 +190,11 @@ const INSTRUMENTS = {
     const o = ctx.createOscillator();
     const f = ctx.createBiquadFilter();
     const g = ctx.createGain();
-    o.type = 'square';
+    o.type = e.wave || 'square';
     o.frequency.value = midiToHz(e.note);
     f.type = 'lowpass';
     f.Q.value = 4;
-    const cut = 700 + e.level * 650;
+    const cut = e.cutoff || 700 + e.level * 650;
     f.frequency.setValueAtTime(cut * 2, t);
     f.frequency.exponentialRampToValueAtTime(cut, t + 0.08);
     o.connect(f).connect(g).connect(out);
@@ -286,7 +395,6 @@ const INSTRUMENTS = {
   },
 };
 
-export const ARRANGEMENT = buildArrangement();
 
 /** Compresor suave para que nada sature, ni en el móvil ni en la exportación. */
 function limiter(ctx, destination) {
@@ -306,9 +414,10 @@ function limiter(ctx, destination) {
  * mediante `songToCtx(t)`. Así el temporizador sigue mandando.
  */
 export class SynthMusic {
-  constructor(ctx, destination) {
+  constructor(ctx, destination, arrangement = []) {
     this.ctx = ctx;
     this.destination = destination;
+    this.arrangement = arrangement;
     this.bus = null;
     this._timer = null;
   }
@@ -325,6 +434,7 @@ export class SynthMusic {
     this.bus.gain.setValueAtTime(1, Math.max(ctx.currentTime, endCtx - 0.03));
     this.bus.gain.linearRampToValueAtTime(0, endCtx);
 
+    const ARRANGEMENT = this.arrangement;
     let i = ARRANGEMENT.findIndex((e) => e.t + e.dur > fromSeconds);
     if (i < 0) return;
     const bus = this.bus;
@@ -372,7 +482,7 @@ export class SynthMusic {
 }
 
 /** Renderiza la pista completa (120 s) en un OfflineAudioContext. */
-export function renderAll(ctx, destination) {
+export function renderAll(ctx, destination, ARRANGEMENT) {
   const bus = ctx.createGain();
   bus.connect(limiter(ctx, destination));
   bus.gain.setValueAtTime(1, TOTAL_SECONDS - 0.03);

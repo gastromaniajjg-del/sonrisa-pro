@@ -1,6 +1,6 @@
-// Escáner de la boca en SVG: 28 dientes definitivos (11-12 años: incisivos, canino,
-// premolares y primeros y segundos molares), cuadrante activo resaltado, cepillo
-// mostrando el movimiento correcto, espuma y limpieza progresiva.
+// Escáner de la boca en SVG: dientes según la edad (20 de leche, 24 en dentición mixta
+// o 28 definitivos), cuadrante activo resaltado, cepillo mostrando el movimiento
+// correcto, espuma y limpieza progresiva.
 // Vista espejo: el lado derecho del niño se dibuja a la derecha de la pantalla.
 
 import { SEGMENTS, SEGMENT_SECONDS } from './config.js';
@@ -13,24 +13,37 @@ const el = (name, attrs = {}, parent) => {
   return n;
 };
 
-// Dientes por cuadrante desde la línea media hacia fuera.
-const TOOTH_TYPES = [
-  { name: 'incisivo central', w: 13, h: 18 },
-  { name: 'incisivo lateral', w: 11, h: 16 },
-  { name: 'canino', w: 12, h: 17 },
-  { name: 'primer premolar', w: 13, h: 15 },
-  { name: 'segundo premolar', w: 13, h: 15 },
-  { name: 'primer molar', w: 18, h: 17 },
-  { name: 'segundo molar', w: 17, h: 16 },
-];
-const MOLAR_FROM = 3; // premolares y molares tienen corona plana
+// Dientes por cuadrante desde la línea media hacia fuera, según la edad (aproximado).
+const DENTITIONS = {
+  leche: {
+    teeth: [
+      { name: 'incisivo central', w: 15, h: 19 }, { name: 'incisivo lateral', w: 13, h: 17 }, { name: 'canino', w: 14, h: 18 },
+      { name: 'primera muela', w: 19, h: 18 }, { name: 'segunda muela', w: 22, h: 19 },
+    ],
+    angles: [0.1, 0.29, 0.5, 0.78, 1.12], molarFrom: 3, center: 2, molar: 4,
+  },
+  mixta: {
+    teeth: [
+      { name: 'incisivo central', w: 14, h: 18 }, { name: 'incisivo lateral', w: 12, h: 16 }, { name: 'canino', w: 13, h: 17 },
+      { name: 'primer premolar o muela de leche', w: 14, h: 15 }, { name: 'segundo premolar o muela de leche', w: 15, h: 15 },
+      { name: 'primer molar', w: 19, h: 17 },
+    ],
+    angles: [0.08, 0.23, 0.39, 0.57, 0.77, 1.06], molarFrom: 3, center: 3, molar: 5,
+  },
+  definitiva: {
+    teeth: [
+      { name: 'incisivo central', w: 13, h: 18 }, { name: 'incisivo lateral', w: 11, h: 16 }, { name: 'canino', w: 12, h: 17 },
+      { name: 'primer premolar', w: 13, h: 15 }, { name: 'segundo premolar', w: 13, h: 15 },
+      { name: 'primer molar', w: 18, h: 17 }, { name: 'segundo molar', w: 17, h: 16 },
+    ],
+    angles: [0.07, 0.2, 0.34, 0.5, 0.67, 0.89, 1.13], molarFrom: 3, center: 3, molar: 5,
+  },
+};
 
 const C = { x: 160, yU: 118, yL: 132, rx: 112, ry: 82 };
 
-function toothPosition(arch, side, i) {
-  // Ángulo desde la línea media (0) hasta el fondo (~80°).
-  const steps = [0.07, 0.2, 0.34, 0.5, 0.67, 0.89, 1.13];
-  const a = steps[i];
+function toothPosition(arch, side, a) {
+  // a: ángulo desde la línea media (0) hasta el fondo (~70°).
   const sx = side === 'right' ? 1 : -1;
   const x = C.x + sx * Math.sin(a) * C.rx;
   const y = arch === 'upper' ? C.yU - Math.cos(a) * C.ry : C.yL + Math.cos(a) * C.ry;
@@ -39,7 +52,22 @@ function toothPosition(arch, side, i) {
 }
 
 export class Mouth {
-  constructor(container) {
+  constructor(container, dentition = 'definitiva') {
+    this.container = container;
+    this._build(dentition);
+  }
+
+  /** Cambia el juego de dientes (al cambiar la edad). */
+  setDentition(dentition) {
+    if (dentition === this.dentition || !DENTITIONS[dentition]) return;
+    this.svg.remove();
+    this._build(dentition);
+  }
+
+  _build(dentition) {
+    const D = (this.D = DENTITIONS[dentition] || DENTITIONS.definitiva);
+    this.dentition = dentition;
+    const container = this.container;
     this.reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.svg = el('svg', { viewBox: '0 0 320 250', class: 'mouth-svg', role: 'img', 'aria-label': 'Boca con los dientes que toca cepillar' });
     container.appendChild(this.svg);
@@ -47,7 +75,7 @@ export class Mouth {
     const defs = el('defs', {}, this.svg);
     defs.innerHTML = `
       <radialGradient id="gum" cx="50%" cy="50%" r="60%">
-        <stop offset="0%" stop-color="#5a2a35"/><stop offset="100%" stop-color="#3a1820"/>
+        <stop offset="0%" style="stop-color: var(--gum-1, #5a2a35)"/><stop offset="100%" style="stop-color: var(--gum-2, #3a1820)"/>
       </radialGradient>
       <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0%" stop-color="#e9feff" stop-opacity="1"/>
@@ -61,7 +89,7 @@ export class Mouth {
     el('path', { d: this._archPath('upper'), fill: 'url(#gum)', class: 'gum' }, this.svg);
     el('path', { d: this._archPath('lower'), fill: 'url(#gum)', class: 'gum' }, this.svg);
     // Lengua
-    el('ellipse', { cx: C.x, cy: C.yL + 22, rx: 52, ry: 30, fill: '#7a3444', opacity: 0.5 }, this.svg);
+    el('ellipse', { cx: C.x, cy: C.yL + 22, rx: 52, ry: 30, style: 'fill: var(--tongue, #7a3444)', opacity: 0.5 }, this.svg);
 
     // Zonas resaltables (debajo de los dientes)
     this.zones = SEGMENTS.map((s) => {
@@ -77,10 +105,10 @@ export class Mouth {
 
     // Dientes
     this.teeth = SEGMENTS.map((s) =>
-      TOOTH_TYPES.map((tt, i) => {
-        const p = toothPosition(s.arch, s.side, i);
+      D.teeth.map((tt, i) => {
+        const p = toothPosition(s.arch, s.side, D.angles[i]);
         const g = el('g', { transform: `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)}) rotate(${p.rot.toFixed(1)})`, class: 'tooth' }, this.svg);
-        const molar = i >= MOLAR_FROM;
+        const molar = i >= D.molarFrom;
         const hw = tt.w / 2;
         const hh = tt.h / 2;
         const d = molar
@@ -181,8 +209,8 @@ export class Mouth {
     const q = this.teeth[seg.index];
     let target;
     let inward = 0;
-    if (step.id === 'muelas') target = q[5].p; // superficie de masticar de los molares
-    else target = q[3].p; // centro del cuadrante
+    if (step.id === 'muelas') target = q[this.D.molar].p; // superficie de masticar de las muelas
+    else target = q[this.D.center].p; // centro del cuadrante
     if (step.id === 'dentro') inward = 1;
 
     // Hacia dentro = hacia el centro del arco.

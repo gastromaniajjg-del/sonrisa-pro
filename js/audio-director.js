@@ -7,7 +7,8 @@
 //  · Si el reloj de audio se desvía más de 40 ms del temporizador, se recoloca.
 
 import { AUDIO_MODES, AUDIO_FILES, TOTAL_SECONDS } from './config.js';
-import { RADIO_CUES } from './soundtrack.js';
+import { cuesFor, getTheme } from './themes.js';
+import { arrangementFor } from './arrangements.js';
 import { SynthMusic } from './music-engine.js';
 
 const DRIFT_TOLERANCE = 0.04;
@@ -57,12 +58,14 @@ export class AudioDirector {
     this.shareWith = shareWith;
     this.settings = { mode: AUDIO_MODES.MUSICA_RADIO, musicVolume: 0.8, voiceVolume: 1, ...settings };
     this.ctx = null;
-    this.assets = { instrumental: null, voice: new Map() };
+    this._store = {}; // audios grabados por temática
+    this._manifest = null;
     this._sources = [];
     this._firedCues = new Set();
     this._speechTimer = null;
     this._esVoice = null;
     this._anchor = null; // { ctx, song }
+    this.setTheme(getTheme(settings?.theme), settings?.name);
 
     timer.on('start', ({ elapsed }) => this._begin(elapsed));
     timer.on('resume', ({ elapsed }) => this._begin(elapsed));
@@ -84,7 +87,6 @@ export class AudioDirector {
     if (this.shareWith && !this.ctx) {
       pending = this.shareWith.unlock(); // crea su contexto de forma síncrona
       this.ctx = this.shareWith.ctx;
-      this.assets = this.shareWith.assets;
       if (this.ctx) this._buildGraph();
     }
     if (!this.ctx) {
@@ -136,25 +138,39 @@ export class AudioDirector {
     shaper.curve = curve;
     this.radioIn.connect(lp).connect(shaper).connect(this.voiceGain);
     this.applyVolumes();
-    this.synth = new SynthMusic(ctx, this.musicGain);
+    this.synth = new SynthMusic(ctx, this.musicGain, this.arrangement);
+  }
+
+  /** Audios grabados de la temática actual (vacío si no hay: se usa síntesis y voz del sistema). */
+  get assets() {
+    const store = (this.shareWith || this)._store;
+    return (store[this.theme.id] ??= { instrumental: null, voice: new Map() });
   }
 
   async _loadAssets() {
-    let available;
+    if (!this.ctx) return;
     try {
-      const res = await fetch('assets/audio/manifest.json', { cache: 'no-cache' });
-      if (!res.ok) return;
-      available = await res.json();
+      if (!this._manifest) {
+        const res = await fetch('assets/audio/manifest.json', { cache: 'no-cache' });
+        if (!res.ok) return;
+        this._manifest = await res.json();
+      }
     } catch { return; }
+    const id = this.theme.id;
+    const entry = this._manifest[id];
+    const target = this.assets;
+    if (!entry || target.loaded) return;
+    target.loaded = true;
     const load = async (url) => {
       const r = await fetch(url);
       if (!r.ok) throw new Error(url);
       return this.ctx.decodeAudioData(await r.arrayBuffer());
     };
-    if (available.instrumental) this.assets.instrumental = await load(AUDIO_FILES.instrumental).catch(() => null);
-    for (const id of available.radio || []) {
-      const buf = await load(`${AUDIO_FILES.voiceDir}${id}.mp3`).catch(() => null);
-      if (buf) this.assets.voice.set(id, buf);
+    const dir = `${AUDIO_FILES.dir}${id}/`;
+    if (entry.instrumental) target.instrumental = await load(`${dir}musica.mp3`).catch(() => null);
+    for (const cue of entry.voz || []) {
+      const buf = await load(`${dir}voz/${cue}.mp3`).catch(() => null);
+      if (buf) target.voice.set(cue, buf);
     }
   }
 
@@ -174,6 +190,15 @@ export class AudioDirector {
   }
 
   // ── Ajustes ────────────────────────────────────────────────────────────────
+  /** Temática y nombre: cambian la música, la voz y los mensajes. */
+  setTheme(theme, name) {
+    this.theme = theme;
+    this.cues = cuesFor(theme, name);
+    this.arrangement = arrangementFor(theme);
+    if (this.synth) this.synth.arrangement = this.arrangement;
+    this._loadAssets();
+  }
+
   setMode(mode) {
     this.settings.mode = mode;
     if (this.timer.state === 'running') this._begin(this.timer.elapsed());
@@ -209,7 +234,7 @@ export class AudioDirector {
     // En el instante ctx+LATENCIA el temporizador marcará elapsed+LATENCIA.
     this._anchor = { ctx: this.ctx.currentTime + START_LATENCY, song: elapsed + START_LATENCY };
     // Los mensajes ya pasados no se repiten al reanudar.
-    this._firedCues = new Set(RADIO_CUES.filter((c) => c.t < elapsed - 0.25).map((c) => c.id));
+    this._firedCues = new Set(this.cues.filter((c) => c.t < elapsed - 0.25).map((c) => c.id));
 
     if (this.musicOn) {
       if (this.assets.instrumental) this._playBuffer(this.assets.instrumental, this.musicGain);
@@ -247,7 +272,7 @@ export class AudioDirector {
 
     // 2) Mensajes de radio.
     if (!this.radioOn) return;
-    for (const cue of RADIO_CUES) {
+    for (const cue of this.cues) {
       if (cue.t > elapsed) break;
       if (this._firedCues.has(cue.id)) continue;
       this._firedCues.add(cue.id);
@@ -276,12 +301,13 @@ export class AudioDirector {
     if (budget <= 0.3) return;
     const duck = this.musicOn;
     const t = this.ctx.currentTime;
-    this._squelch(t);
+    const radio = this.theme.voice.radio;
+    if (radio) this._squelch(t);
     const clip = this.assets.voice.get(cue.id);
     if (clip) {
       const src = this.ctx.createBufferSource();
       src.buffer = clip;
-      src.connect(this.radioIn);
+      src.connect(radio ? this.radioIn : this.voiceGain);
       const len = Math.min(budget - 0.1, clip.duration);
       src.start(t + 0.1);
       src.stop(t + 0.1 + len);
@@ -294,8 +320,8 @@ export class AudioDirector {
     const u = new SpeechSynthesisUtterance(cue.text);
     u.lang = 'es-ES';
     if (this._esVoice) u.voice = this._esVoice;
-    u.rate = 1.08;
-    u.pitch = 0.9;
+    u.rate = this.theme.voice.rate;
+    u.pitch = this.theme.voice.pitch;
     u.volume = Math.min(1, this.settings.voiceVolume);
     if (duck) {
       u.onstart = () => this._duck(this.ctx.currentTime, null);

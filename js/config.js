@@ -51,7 +51,7 @@ export const AUDIO_MODES = {
 
 // Recursos de audio grabados (opcionales). Si existen, sustituyen a la síntesis.
 // Ver assets/audio/README.md para las especificaciones exactas.
+// Estructura: assets/audio/<temática>/musica.mp3 y assets/audio/<temática>/voz/<id>.mp3
 export const AUDIO_FILES = {
-  instrumental: 'assets/audio/banda-sonora.mp3',
-  voiceDir: 'assets/audio/radio/',
+  dir: 'assets/audio/',
 };
