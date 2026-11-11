@@ -1,5 +1,5 @@
-// Accesorios del compañero. Se desbloquean con las recompensas (1 por misión completada,
-// compartidas entre temáticas). Hay dos juegos: uno para el diente (Dientín) y otro
+// Accesorios del compañero. Se desbloquean con las recompensas (máximo 2 al día,
+// compartidas entre temáticas) o, los de leyenda, con la racha de 7 días. Hay dos juegos: uno para el diente (Dientín) y otro
 // para los compañeros-dron (submarino, hada, sonda, balón…).
 // slot: dónde se monta. Solo puede haber uno por slot.
 
@@ -12,6 +12,7 @@ export const DRONE_ACCESSORIES = [
   { id: 'dorada', name: 'Carcasa dorada', slot: 'carcasa', stars: 10, icon: '🥇', color: 0xd9a92b },
   { id: 'sigilo', name: 'Carcasa sigilo', slot: 'carcasa', stars: 14, icon: '🕶️', color: 0x1c1f24 },
   { id: 'holo', name: 'Carcasa holográfica', slot: 'carcasa', stars: 20, icon: '🌈', color: 'holo' },
+  { id: 'leyenda', name: 'Carcasa de leyenda', slot: 'carcasa', achievement: 'racha-7', icon: '👑', color: 'legend' },
 ];
 
 export const TOOTH_ACCESSORIES = [
@@ -23,6 +24,7 @@ export const TOOTH_ACCESSORIES = [
   { id: 'capa-dorada', name: 'Capa dorada', slot: 'capa', stars: 10, icon: '✨', color: 0xf5c542 },
   { id: 'heroe', name: 'Disfraz de superhéroe', slot: 'cara', stars: 14, icon: '🦸', cape: 0xe0384b },
   { id: 'capa-arcoiris', name: 'Capa arcoíris', slot: 'capa', stars: 20, icon: '🌈', color: 'rainbow' },
+  { id: 'capa-leyenda', name: 'Capa de leyenda', slot: 'capa', achievement: 'racha-7', icon: '👑', color: 'legend' },
 ];
 
 // Compatibilidad con el código anterior.
@@ -32,8 +34,9 @@ export function accessoriesFor(mascot) {
   return mascot === 'tooth' ? TOOTH_ACCESSORIES : DRONE_ACCESSORIES;
 }
 
-export function isUnlocked(acc, stars) {
-  return stars >= acc.stars;
+/** Los de leyenda no se compran con premios: se ganan con un logro (7 días seguidos). */
+export function isUnlocked(acc, stars, achievements = {}) {
+  return acc.achievement ? !!achievements[acc.achievement] : stars >= acc.stars;
 }
 
 export function nextUnlock(stars, mascot = 'drone') {

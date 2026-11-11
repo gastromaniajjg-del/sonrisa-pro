@@ -56,9 +56,18 @@
         <p class="kicker" id="home-kicker">Hola</p>
         <h1 id="home-title" data-text="">La misión de la sonrisa</h1>
         <p class="sub" id="home-sub">Cuatro zonas de la boca, dos minutos.</p>
+        <div class="streak-box" aria-label="Tu semana">
+          <div class="streak-head"><span class="streak" id="streak">🔥 0 días</span><span class="slot-hint" id="slot-hint"></span></div>
+          <ol class="week" id="week"></ol>
+        </div>
         <button class="big-btn" id="btn-start">¡Empezar!</button>
-        <button class="soft-btn" id="btn-wardrobe">🛠️ <span id="wardrobe-label">Taller</span></button>
+        <div class="row-btns">
+          <button class="soft-btn" id="btn-wardrobe">🛠️ <span id="wardrobe-label">Taller</span></button>
+          <button class="soft-btn" id="btn-logros">🏅 Logros <b id="logros-count">0</b></button>
+        </div>
         <p class="next-unlock" id="next-unlock"></p>
+        <p class="pact-home" id="pact-home" hidden></p>
+        <button class="link-btn" id="btn-padres">👪 Zona de padres</button>
       </div>
     </section>
 
@@ -105,6 +114,8 @@
         <div class="award" id="award" aria-hidden="true">⭐</div>
         <p class="sub" id="done-text"></p>
         <div class="unlocked" id="unlocked" hidden></div>
+        <ul class="new-logros" id="new-logros" hidden></ul>
+        <div class="pact-done" id="pact-done" hidden></div>
         <button class="big-btn" id="btn-home">Volver</button>
         <button class="soft-btn" id="btn-wardrobe-2">🛠️ <span id="wardrobe-label-2">Taller</span></button>
       </div>
@@ -119,6 +130,59 @@
       </header>
       <div class="hangar-spacer"></div>
       <ul class="acc-grid" id="acc-grid"></ul>
+    </section>
+
+    <!-- LOGROS -->
+    <section class="screen" id="screen-logros" aria-labelledby="logros-title">
+      <header class="topbar">
+        <button class="icon-btn" data-back aria-label="Volver">←</button>
+        <h2 id="logros-title">Logros</h2>
+        <span class="pill" id="logros-pill">0/0</span>
+      </header>
+      <div class="card stats-card" id="stats-card"></div>
+      <ul class="logros-grid" id="logros-grid"></ul>
+    </section>
+
+    <!-- ZONA DE PADRES -->
+    <section class="screen" id="screen-padres" aria-labelledby="padres-title">
+      <header class="topbar">
+        <button class="icon-btn" data-back aria-label="Volver">←</button>
+        <h2 id="padres-title">Zona de padres</h2>
+        <span></span>
+      </header>
+      <div class="card" id="padres-gate">
+        <p class="sub">Para entrar, resuelve esta operación:</p>
+        <p class="gate-q" id="gate-q">7 × 8</p>
+        <input id="gate-a" type="number" inputmode="numeric" autocomplete="off" aria-label="Resultado">
+        <button class="big-btn" id="gate-ok">Entrar</button>
+        <p class="note" id="gate-msg"></p>
+      </div>
+      <div id="padres-panel" hidden>
+        <div class="card">
+          <h3>Últimas dos semanas</h3>
+          <ol class="week week-14" id="week-14"></ol>
+          <p class="legend"><span class="dot-m"></span> mañana · <span class="dot-n"></span> noche</p>
+          <dl class="kpis" id="kpis"></dl>
+        </div>
+        <div class="card">
+          <h3>Premio pactado</h3>
+          <div id="pact-view"></div>
+          <form id="pact-form" class="pact-form">
+            <label class="field"><span>¿Qué premio?</span><input id="pact-reward" type="text" maxlength="60" placeholder="Por ejemplo: elegir la cena del viernes"></label>
+            <label class="field"><span>¿Qué tiene que conseguir?</span>
+              <select id="pact-type">
+                <option value="racha">Días seguidos cepillándose</option>
+                <option value="perfectos">Días perfectos (mañana y noche)</option>
+              </select>
+            </label>
+            <label class="field"><span>¿Cuántos días?</span>
+              <select id="pact-target"><option>3</option><option>5</option><option selected>7</option><option>10</option><option>14</option><option>21</option><option>30</option></select>
+            </label>
+            <button class="big-btn" type="submit">Guardar premio</button>
+          </form>
+          <p class="note">Solo cuentan los días desde que guardas el premio. Cada turno (mañana y noche) da como mucho un premio en la app, para que no se pueda hacer trampa repitiendo.</p>
+        </div>
+      </div>
     </section>
 
     <!-- SONIDO -->

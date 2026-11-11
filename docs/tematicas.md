@@ -27,3 +27,10 @@ Hay dos juegos: uno para Dientín (gafas, gorra, pajarita, corona, gorro de mago
 ## Voz y audio grabado
 
 La voz usa la del móvil en español, con el nombre del niño. Para sustituirla por grabaciones de cada aventura, ver `assets/audio/README.md`. Una frase grabada no puede decir el nombre, así que en la grabación se omite.
+
+## Motivación: rachas, logros y premio pactado
+
+- **Dos premios al día como máximo.** El día tiene dos turnos: mañana (de 4:00 a 13:59) y noche (de 14:00 a 3:59; lo de madrugada cuenta como la noche anterior). Solo el primer cepillado de cada turno da premio. Los demás se registran, pero no suman. Así no se desbloquea todo en una tarde.
+- **Racha:** días seguidos con al menos un cepillado. No se rompe hasta que acaba el día. **Día perfecto:** mañana y noche. En el inicio se ve la racha y la semana, con dos marcas por día.
+- **Logros (14):** primer cepillado, día perfecto, rachas de 3, 7, 14 y 30 días, semana perfecta, 10 mañanas, 10 noches, probar 3 o las 7 aventuras, y 10, 50 y 100 cepillados. La racha de 7 días desbloquea además un accesorio de leyenda (capa para Dientín, carcasa para los drones).
+- **Zona de padres** (botón «👪 Zona de padres» del inicio, protegida con una multiplicación): calendario de las dos últimas semanas, racha, días perfectos y totales. También se puede pactar un premio real, por ejemplo «7 días seguidos = elegir la cena del viernes». La app enseña el progreso, avisa al conseguirlo y se marca como entregado.

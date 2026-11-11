@@ -24,7 +24,7 @@ En `manifest.json`, por ejemplo:
 "mar": { "instrumental": true, "voz": ["n1", "n1-fuera", "n2", "salida"] }
 ```
 
-Después, sube la versión de la caché en `sw.js` (`VERSION = 'mision-sonrisa-v5'`) para que los móviles con la app instalada descarguen y guarden los audios nuevos.
+Después, sube la versión de la caché en `sw.js` (`VERSION = 'mision-sonrisa-v6'`) para que los móviles con la app instalada descarguen y guarden los audios nuevos.
 
 ## Reglas que aplica la app
 

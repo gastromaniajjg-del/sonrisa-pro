@@ -31,6 +31,7 @@ body {
   overflow-x: hidden;
 }
 button { font: inherit; color: inherit; cursor: pointer; }
+[hidden] { display: none !important; }
 
 /* Mundo 3D de fondo + capa VHS */
 #world { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; z-index: 0; }
@@ -325,3 +326,55 @@ body[data-theme="partido"] {
   background: #2f8a30;
 }
 body[data-theme="partido"] h1 { color: #ffffff; text-shadow: 0 3px 0 rgba(0, 0, 0, .3); }
+
+/* ── Racha, semana, logros y zona de padres ──────────────────────────────── */
+.streak-box { width: 100%; display: grid; gap: 6px; }
+.streak-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.streak { font-family: var(--display); font-weight: 800; font-size: 1.1rem; }
+.slot-hint { font-size: .85rem; color: var(--muted); }
+.week { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.week li { display: grid; justify-items: center; gap: 3px; font-size: .7rem; color: var(--muted); font-family: var(--mono); }
+.week li.today { color: var(--ink); font-weight: 800; }
+.week .dots { display: grid; grid-template-rows: 1fr 1fr; gap: 2px; }
+.week .dots i { width: 22px; height: 9px; border-radius: 5px; background: rgba(127, 127, 127, .25); }
+.week .dots i.on-m { background: var(--accent); }
+.week .dots i.on-n { background: var(--cyan); }
+.week li.perfect .dots { box-shadow: 0 0 0 2px var(--accent); border-radius: 6px; }
+.week-14 { grid-template-columns: repeat(7, 1fr); row-gap: 8px; }
+.legend { margin: 6px 0 0; font-size: .8rem; color: var(--muted); }
+.dot-m, .dot-n { display: inline-block; width: 14px; height: 7px; border-radius: 4px; background: var(--accent); vertical-align: middle; }
+.dot-n { background: var(--cyan); }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.link-btn { border: 0; background: none; color: var(--muted); font-size: .85rem; text-decoration: underline; padding: 4px; }
+.pact-home { margin: 0; font-size: .9rem; font-weight: 700; }
+.new-logros { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; width: 100%; }
+.new-logros li { background: var(--panel); border: 1px solid var(--accent); border-radius: 12px; padding: 8px 12px; font-weight: 700; }
+.pact-done { background: var(--cyan); color: #10161c; border-radius: 12px; padding: 10px 14px; font-weight: 800; }
+.stats-card { grid-template-columns: repeat(3, 1fr); text-align: center; }
+.stats-card div { display: grid; gap: 2px; }
+.stats-card b { font-family: var(--display); font-size: 1.5rem; }
+.stats-card small { color: var(--muted); font-size: .75rem; }
+.logros-grid { list-style: none; margin: 0; padding: 0; width: 100%; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.logro { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; display: grid; gap: 3px; text-align: left; }
+.logro .e { font-size: 1.6rem; }
+.logro small { color: var(--muted); font-size: .78rem; line-height: 1.3; }
+.logro.locked { opacity: .5; }
+.logro.locked .e { filter: grayscale(1); }
+#padres-gate { justify-items: center; }
+.gate-q { margin: 0; font-family: var(--display); font-size: 2rem; font-weight: 800; }
+#gate-a, .pact-form input, .pact-form select {
+  font: inherit; font-size: 1.1rem; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0, 0, 0, .12); color: var(--ink); width: 100%;
+}
+#gate-a { max-width: 160px; text-align: center; }
+#padres-panel { width: 100%; display: grid; gap: 10px; }
+#padres-panel .card { justify-items: stretch; text-align: left; }
+#padres-panel h3 { margin: 0; font-family: var(--display); }
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 12px; margin: 8px 0 0; }
+.kpis div { display: flex; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--line); padding: 4px 0; }
+.kpis dt { color: var(--muted); font-size: .85rem; }
+.kpis dd { margin: 0; font-weight: 800; font-variant-numeric: tabular-nums; }
+.pact-form { display: grid; gap: 10px; }
+.pact-bar { height: 12px; border-radius: 6px; background: rgba(127, 127, 127, .25); overflow: hidden; margin: 6px 0; }
+.pact-bar i { display: block; height: 100%; background: var(--accent); }
+.pact-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+body[data-theme="dientin"] #gate-a, body[data-theme="dientin"] .pact-form input, body[data-theme="dientin"] .pact-form select { background: #fff; }

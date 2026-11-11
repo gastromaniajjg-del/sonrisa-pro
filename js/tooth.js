@@ -325,10 +325,13 @@ export class ToothMascot {
       mesh.visible = Object.values(equipped).includes(id);
     });
     this._rainbow = false;
+    this._legend = false;
+    this.capeMat.emissive.setHex(0x000000);
     let cape = BLUE;
     if (equipped.cara === 'heroe') cape = ACCESSORIES.find((a) => a.id === 'heroe').cape;
     const capeAcc = ACCESSORIES.find((a) => a.id === equipped.capa);
     if (capeAcc?.color === 'rainbow') this._rainbow = true;
+    else if (capeAcc?.color === 'legend') this._legend = true;
     else if (capeAcc) cape = capeAcc.color;
     this.capeMat.color.setHex(cape);
   }
@@ -429,6 +432,7 @@ export class ToothMascot {
     pos.needsUpdate = true;
     this.cape.geometry.computeVertexNormals();
     if (this._rainbow) this.capeMat.color.setHSL((t * 0.15) % 1, 0.75, 0.55);
+    if (this._legend) { this.capeMat.color.setHSL(0.12, 0.9, 0.5 + Math.sin(t * 3) * 0.08); this.capeMat.emissive?.setHSL(0.12, 0.9, 0.12 + Math.sin(t * 3) * 0.06); }
 
     // Brillo
     this.toothMat.emissiveIntensity = 0.02 + this.shine * 0.12;

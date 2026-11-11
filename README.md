@@ -4,7 +4,7 @@ Aplicación móvil para aprender a cepillarse los dientes mediante música, anim
 
 ## La misión de la sonrisa
 
-Dos minutos exactos de cepillado en cuatro zonas de la boca (30 s cada una, con 4 pasos de 7,5 s). Al abrirla se pide nombre y edad y se elige una de **siete aventuras**: Dientín, Fondo del mar, Bosque mágico, Dinosaurios, Misión espacial, Partido y Escapa en 2:00. Cada una tiene su mundo 3D, su compañero, su música y su voz. Detalle en `docs/tematicas.md`.
+Dos minutos exactos de cepillado en cuatro zonas de la boca (30 s cada una, con 4 pasos de 7,5 s). Al abrirla se pide nombre y edad y se elige una de **siete aventuras**: Dientín, Fondo del mar, Bosque mágico, Dinosaurios, Misión espacial, Partido y Escapa en 2:00. Cada una tiene su mundo 3D, su compañero, su música y su voz. Para mantener la motivación hay rachas (máximo dos premios al día, mañana y noche), 14 logros y una zona de padres para pactar un premio real. Detalle en `docs/tematicas.md`.
 
 Es una PWA (web instalable): se abre en el navegador del móvil, se añade a la pantalla de inicio y, una vez cargada, funciona sin Internet. Publicada en https://gastromaniajjg-del.github.io/sonrisa-pro/
 
@@ -31,7 +31,7 @@ No hace falta instalar dependencias. Three.js va incluido en `vendor/` (licencia
 | `js/scene.js` · `js/worlds.js` | Escenario 3D: pasillos de Escapa y mundos abiertos del resto |
 | `js/tooth.js` | Dientín en 3D |
 | `js/mouth.js` | Dientes según la edad, zona activa, cepillo animado y limpieza |
-| `js/progress.js` · `js/accessories.js` | Perfil, recompensas y accesorios, guardados en el móvil |
+| `js/progress.js` · `js/accessories.js` · `js/achievements.js` | Perfil, turnos, rachas, logros, premio pactado y accesorios, guardados en el móvil |
 | `sw.js` | Caché para funcionar sin conexión |
 | `docs/tematicas.md` · `docs/tiempos.md` | Aventuras y hoja de tiempos de todas las voces |
 | `tools/exportar-pista-guia.html` | Exporta en WAV la música de cualquier aventura |

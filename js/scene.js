@@ -533,11 +533,13 @@ export class Scene {
       disc.material.color.setHex(turbo ? 0x4fb3ff : 0xbfd6e6);
     });
     this._holo = false;
+    this._legend = false;
     this.shellMat.map = null;
     let color = this.variantColor ?? 0xe9edf0;
     if (!equipped.carcasa && this.variantMap) this.shellMat.map = this.variantMap;
     const skin = ACCESSORIES.find((a) => a.id === equipped.carcasa);
     if (skin?.color === 'holo') this._holo = true;
+    else if (skin?.color === 'legend') this._legend = true;
     else if (skin?.color === 'camo') {
       this.shellMat.map = (this._camo ??= canvasTex(128, (g, s) => {
         const r = rng(7);
@@ -549,7 +551,7 @@ export class Scene {
     } else if (skin) color = skin.color;
     this.shellMat.color.setHex(this.shellMat.map ? 0xffffff : color);
     this.shellMat.emissive.setHex(this.variant === 'hada' && !skin ? 0x8a3fbf : 0x000000);
-    this.shellMat.metalness = skin?.id === 'dorada' ? 0.8 : 0.15;
+    this.shellMat.metalness = skin?.id === 'dorada' || skin?.id === 'leyenda' ? 0.8 : 0.15;
     this.shellMat.needsUpdate = true;
   }
 
@@ -727,6 +729,7 @@ export class Scene {
     this.led.material.color.setHex((t % 1.2) < 0.15 ? 0xffffff : this.mood === 'contento' ? 0xffd84a : 0x3dff8a);
     if (this.antennaTip) this.antennaTip.visible = (t % 1) < 0.5;
     if (this._holo) this.shellMat.color.setHSL((t * 0.12) % 1, 0.7, 0.6);
+    if (this._legend) { this.shellMat.color.setHSL(0.13, 0.85, 0.55 + Math.sin(t * 3) * 0.08); this.shellMat.emissive.setHSL(0.13, 0.9, 0.1 + Math.sin(t * 3) * 0.05); }
 
     // Pinza: demostración del movimiento
     if (this.brushMotion && this.mood !== 'contento') {

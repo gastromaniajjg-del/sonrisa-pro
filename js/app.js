@@ -8,6 +8,7 @@ import { lyricAt } from './song-dientin.js';
 import { THEMES, getTheme, recommendedTheme, dentitionForAge, cueAt } from './themes.js';
 import { Mouth } from './mouth.js';
 import { Progress } from './progress.js';
+import { ACHIEVEMENTS } from './achievements.js';
 import { accessoriesFor, isUnlocked, nextUnlock } from './accessories.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -74,7 +75,7 @@ function escapeHtml(s) {
 // ── Navegación ──────────────────────────────────────────────────────────────
 let current = 'home';
 const history = [];
-const sceneModeFor = (name) => ({ home: 'home', brush: 'brush', done: 'done', wardrobe: 'hangar', settings: 'home', profile: 'home' }[name]);
+const sceneModeFor = (name) => ({ home: 'home', brush: 'brush', done: 'done', wardrobe: 'hangar' }[name] || 'home');
 function show(name, { back = false } = {}) {
   if (!back && current !== name) history.push(current);
   document.querySelectorAll('.screen').forEach((s) => s.classList.toggle('active', s.id === `screen-${name}`));
@@ -84,6 +85,8 @@ function show(name, { back = false } = {}) {
   if (name === 'wardrobe') renderWardrobe();
   if (name === 'settings') renderSettings();
   if (name === 'profile') renderProfile();
+  if (name === 'logros') renderLogros();
+  if (name === 'padres') renderPadresGate();
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => show(history.pop() || 'home', { back: true })));
@@ -160,10 +163,39 @@ function renderHome() {
   $('#next-unlock').textContent = next
     ? `${next.stars - progress.stars} ${theme.reward.icon} más para: ${next.icon} ${next.name}`
     : `Taller completo: ${theme.companion} lo tiene todo.`;
+  const st = progress.stats();
+  $('#streak').textContent = st.streak ? `🔥 ${st.streak} ${st.streak === 1 ? 'día' : 'días'} seguidos` : '🔥 Empieza tu racha';
+  const slot = new Date().getHours() >= 4 && new Date().getHours() < 14 ? 'mañana' : 'noche';
+  $('#slot-hint').textContent = progress.slotRewarded()
+    ? `Premio de esta ${slot} conseguido ✓`
+    : `Premio de esta ${slot}: pendiente`;
+  renderWeek($('#week'), progress.week(new Date(), 7));
+  $('#logros-count').textContent = `${Object.keys(progress.achievements).length}/${ACHIEVEMENTS.length}`;
+  const pp = progress.pactProgress();
+  const pact = progress.data.pact;
+  const ph = $('#pact-home');
+  ph.hidden = !pact || !!pact.deliveredAt;
+  if (pact && !pact.deliveredAt) ph.textContent = pp.done ? `🎁 ¡Premio conseguido: ${pact.reward}!` : `🎁 ${pact.reward}: ${pp.value}/${pp.target} ${pact.type === 'perfectos' ? 'días perfectos' : 'días seguidos'}`;
   world?.setBrushMotion(null);
   world?.setExpression('feliz');
   world?.setLevel(0, { instant: true });
 }
+
+const DOW = ['D', 'L', 'M', 'X', 'J', 'V', 'S'];
+function renderWeek(ol, days) {
+  ol.innerHTML = '';
+  for (const d of days) {
+    const [y, m, dd] = d.key.split('-').map(Number);
+    const li = document.createElement('li');
+    li.className = `${d.today ? 'today' : ''} ${d.manana && d.noche ? 'perfect' : ''}`;
+    li.title = `${dd}/${m}: ${d.manana ? 'mañana ✓' : 'mañana —'} · ${d.noche ? 'noche ✓' : 'noche —'}`;
+    li.innerHTML = `<span class="dots"><i class="${d.manana ? 'on-m' : ''}"></i><i class="${d.noche ? 'on-n' : ''}"></i></span>${DOW[new Date(y, m - 1, dd).getDay()]}`;
+    ol.appendChild(li);
+  }
+}
+
+$('#btn-logros').addEventListener('click', () => show('logros'));
+$('#btn-padres').addEventListener('click', () => show('padres'));
 
 $('#btn-start').addEventListener('click', startMission);
 $('#btn-wardrobe').addEventListener('click', () => show('wardrobe'));
@@ -284,8 +316,7 @@ timer.on('complete', () => {
   $('#ring-fg').style.strokeDashoffset = '0';
   $('#clean-pct').textContent = 'LIMPIEZA 100%';
   mouth.finish();
-  const unlocked = progress.completeMission(new Date(), theme.id);
-  showDone(unlocked[mascotKey()]);
+  showDone(progress.completeMission(new Date(), theme.id));
 });
 
 // Recuadro de texto: la letra de la canción (Dientín, con música) o lo que dice la voz.
@@ -331,23 +362,110 @@ $('#btn-quit').addEventListener('click', () => {
 });
 
 // ── Final ───────────────────────────────────────────────────────────────────
-function showDone(unlocked) {
+function showDone(result) {
   show('done');
   world?.setBrushMotion(null);
   world?.setShine(1);
   world?.setExpression('contento');
   const n = progress.stars;
+  const name = profile().name || 'campeón';
+  const st = progress.stats();
+  const streak = st.streak > 1 ? ` 🔥 Racha: ${st.streak} días.` : '';
   $('#done-title').textContent = theme.done;
-  $('#award').textContent = theme.reward.icon;
-  $('#done-text').textContent = `¡Bien hecho, ${profile().name || 'campeón'}! +1 ${theme.reward.icon} · Llevas ${n} ${n === 1 ? theme.reward.one : theme.reward.many}.`;
+  $('#award').textContent = result.rewarded ? theme.reward.icon : '🪥';
+  $('#done-text').textContent = result.rewarded
+    ? `¡Bien hecho, ${name}! +1 ${theme.reward.icon} · Llevas ${n} ${n === 1 ? theme.reward.one : theme.reward.many}.${streak}`
+    : `¡Bien hecho, ${name}! El premio de esta ${result.slot === 'manana' ? 'mañana' : 'noche'} ya lo tenías. El siguiente, ${result.slot === 'manana' ? 'esta noche' : 'mañana por la mañana'}.${streak}`;
+  const unlocked = result[mascotKey()];
   const box = $('#unlocked');
-  if (unlocked.length) {
-    box.hidden = false;
-    box.textContent = `Desbloqueado para ${theme.companion}: ${unlocked.map((a) => `${a.icon} ${a.name}`).join(', ')}`;
+  box.hidden = !unlocked.length;
+  if (unlocked.length) box.textContent = `Desbloqueado para ${theme.companion}: ${unlocked.map((a) => `${a.icon} ${a.name}`).join(', ')}`;
+  const ul = $('#new-logros');
+  ul.hidden = !result.achievements.length;
+  ul.innerHTML = result.achievements.map((a) => `<li>${a.icon} Logro nuevo: ${a.name}</li>`).join('');
+  const pd = $('#pact-done');
+  pd.hidden = !result.pactDone;
+  if (result.pactDone) pd.textContent = `🎁 ¡Has conseguido el premio: ${progress.data.pact.reward}! Avisa a tu familia.`;
+}
+
+// ── Logros ──────────────────────────────────────────────────────────────────
+function renderLogros() {
+  const st = progress.stats();
+  const got = progress.achievements;
+  $('#logros-pill').textContent = `${Object.keys(got).length}/${ACHIEVEMENTS.length}`;
+  $('#stats-card').innerHTML = `
+    <div><b>${st.streak}</b><small>días seguidos</small></div>
+    <div><b>${st.bestStreak}</b><small>mejor racha</small></div>
+    <div><b>${st.perfectDays}</b><small>días perfectos</small></div>`;
+  $('#logros-grid').innerHTML = ACHIEVEMENTS.map((a) => `
+    <li class="logro ${got[a.id] ? '' : 'locked'}"><span class="e" aria-hidden="true">${got[a.id] ? a.icon : '🔒'}</span><b>${a.name}</b><small>${a.desc}</small></li>`).join('');
+}
+
+// ── Zona de padres ──────────────────────────────────────────────────────────
+let gateAnswer = 0;
+function renderPadresGate() {
+  const a = 6 + Math.floor(Math.random() * 4);
+  const b = 6 + Math.floor(Math.random() * 4);
+  gateAnswer = a * b;
+  $('#gate-q').textContent = `${a} × ${b}`;
+  $('#gate-a').value = '';
+  $('#gate-msg').textContent = '';
+  $('#padres-gate').hidden = false;
+  $('#padres-panel').hidden = true;
+}
+function tryGate() {
+  if (Number($('#gate-a').value) === gateAnswer) {
+    $('#padres-gate').hidden = true;
+    $('#padres-panel').hidden = false;
+    renderPadres();
   } else {
-    box.hidden = true;
+    $('#gate-msg').textContent = 'No es correcto. Prueba otra vez.';
   }
 }
+$('#gate-ok').addEventListener('click', tryGate);
+$('#gate-a').addEventListener('keydown', (e) => { if (e.key === 'Enter') tryGate(); });
+
+function renderPadres() {
+  renderWeek($('#week-14'), progress.week(new Date(), 14));
+  const st = progress.stats();
+  const last7 = progress.week(new Date(), 7);
+  const turns7 = last7.reduce((n, d) => n + (d.manana ? 1 : 0) + (d.noche ? 1 : 0), 0);
+  $('#kpis').innerHTML = [
+    ['Racha actual', `${st.streak} d`],
+    ['Mejor racha', `${st.bestStreak} d`],
+    ['Turnos esta semana', `${turns7}/14`],
+    ['Días perfectos', st.perfectDays],
+    ['Cepillados totales', st.total],
+    ['Aventuras probadas', `${st.themes}/7`],
+  ].map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  const pact = progress.data.pact;
+  const view = $('#pact-view');
+  if (!pact) {
+    view.innerHTML = '<p class="sub">No hay ningún premio pactado.</p>';
+  } else {
+    const pp = progress.pactProgress();
+    const what = pact.type === 'perfectos' ? 'días perfectos' : 'días seguidos';
+    view.innerHTML = `
+      <p><b>${escapeHtml(pact.reward)}</b> · ${pp.value}/${pp.target} ${what}</p>
+      <div class="pact-bar"><i style="width:${Math.round((pp.value / pp.target) * 100)}%"></i></div>
+      <p class="sub">${pact.deliveredAt ? 'Entregado ✓' : pp.done ? '¡Conseguido! Pendiente de entregar.' : 'En marcha.'}</p>
+      <div class="pact-actions">
+        ${pp.done && !pact.deliveredAt ? '<button class="soft-btn" id="pact-delivered">Marcar como entregado</button>' : ''}
+        <button class="soft-btn ghost" id="pact-clear">Quitar premio</button>
+      </div>`;
+    $('#pact-delivered')?.addEventListener('click', () => { progress.markPactDelivered(); renderPadres(); });
+    $('#pact-clear').addEventListener('click', () => { progress.clearPact(); renderPadres(); });
+  }
+  $('#pact-form').hidden = !!pact && !pact.deliveredAt;
+}
+$('#pact-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const reward = $('#pact-reward').value.trim();
+  if (!reward) { $('#pact-reward').focus(); return; }
+  progress.setPact({ reward, type: $('#pact-type').value, target: $('#pact-target').value });
+  $('#pact-reward').value = '';
+  renderPadres();
+});
 
 // ── Taller del compañero ────────────────────────────────────────────────────
 function renderWardrobe() {
@@ -362,11 +480,11 @@ function renderWardrobe() {
     const li = document.createElement('li');
     const b = document.createElement('button');
     b.className = 'acc';
-    const open = isUnlocked(acc, progress.stars);
+    const open = isUnlocked(acc, progress.stars, progress.achievements);
     const on = equipped[acc.slot] === acc.id;
     b.disabled = !open;
     b.setAttribute('aria-pressed', String(on));
-    b.innerHTML = `<span class="e" aria-hidden="true">${open ? acc.icon : '🔒'}</span><b>${acc.name}</b><small>${open ? (on ? 'PUESTO' : 'PONER') : `${acc.stars} ${theme.reward.icon}`}</small>`;
+    b.innerHTML = `<span class="e" aria-hidden="true">${open ? acc.icon : '🔒'}</span><b>${acc.name}</b><small>${open ? (on ? 'PUESTO' : 'PONER') : acc.achievement ? '🔥 7 días seguidos' : `${acc.stars} ${theme.reward.icon}`}</small>`;
     b.addEventListener('click', () => {
       progress.equip(acc.id, key);
       world?.setEquipped(progress.data.equipped[key], key);
