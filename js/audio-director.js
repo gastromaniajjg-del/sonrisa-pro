@@ -11,6 +11,39 @@ import { RADIO_CUES } from './soundtrack.js';
 import { SynthMusic } from './music-engine.js';
 
 const DRIFT_TOLERANCE = 0.04;
+
+// ── Desbloqueo de audio en iPhone ────────────────────────────────────────────
+// Safari en iOS trata el audio de una web como «sonido de aviso»: si el interruptor
+// lateral está en silencio, no suena nada. Reproducir un <audio> silencioso en bucle
+// (y pedir la sesión de audio «playback» donde existe) lo pasa a «reproducción
+// multimedia», que suena aunque el interruptor esté en silencio.
+let silentEl = null;
+function silentWavUrl() {
+  const n = 4000; // 0,5 s a 8 kHz, 8 bits
+  const buf = new ArrayBuffer(44 + n);
+  const v = new DataView(buf);
+  const w = (o, str) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + n, true); w(8, 'WAVE'); w(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 8000, true); v.setUint16(32, 1, true); v.setUint16(34, 8, true);
+  w(36, 'data'); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+function unlockMediaSession() {
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* no soportado */ }
+  try {
+    if (!silentEl) {
+      silentEl = new Audio(silentWavUrl());
+      silentEl.loop = true;
+      silentEl.setAttribute('playsinline', '');
+    }
+    if (silentEl.paused) silentEl.play().catch(() => {});
+  } catch { /* no soportado */ }
+}
+function releaseMediaSession() {
+  try { silentEl?.pause(); } catch { /* nada */ }
+}
 const START_LATENCY = 0.06;
 
 export class AudioDirector {
@@ -34,19 +67,25 @@ export class AudioDirector {
     timer.on('start', ({ elapsed }) => this._begin(elapsed));
     timer.on('resume', ({ elapsed }) => this._begin(elapsed));
     timer.on('pause', () => this.stopAll());
-    timer.on('reset', () => this.stopAll());
-    timer.on('complete', () => this.stopAll());
+    timer.on('reset', () => { this.stopAll(); if (!this.shareWith) releaseMediaSession(); });
+    timer.on('complete', () => { this.stopAll(); if (!this.shareWith) releaseMediaSession(); });
     timer.on('tick', ({ elapsed }) => this._onTick(elapsed));
   }
 
   // ── Inicialización ─────────────────────────────────────────────────────────
-  /** Debe llamarse desde un gesto del usuario (requisito de los navegadores). */
+  /**
+   * Debe llamarse desde un gesto del usuario (requisito de los navegadores).
+   * Todo lo que desbloquea el audio se hace de forma síncrona, antes del primer `await`,
+   * porque Safari en iPhone solo lo acepta dentro del propio toque.
+   */
   async unlock() {
+    unlockMediaSession();
+    let pending = null;
     if (this.shareWith && !this.ctx) {
-      await this.shareWith.unlock();
+      pending = this.shareWith.unlock(); // crea su contexto de forma síncrona
       this.ctx = this.shareWith.ctx;
       this.assets = this.shareWith.assets;
-      this._buildGraph();
+      if (this.ctx) this._buildGraph();
     }
     if (!this.ctx) {
       const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -55,9 +94,26 @@ export class AudioDirector {
       this._buildGraph();
       this._loadAssets(); // en segundo plano; si no hay archivos se usa síntesis
     }
-    if (this.ctx.state === 'suspended') await this.ctx.resume();
+    const resumed = this.ctx.state !== 'running' ? this.ctx.resume() : null;
+    // Un sonido vacío dentro del toque termina de desbloquear el audio en iOS.
+    try {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.ctx.createBuffer(1, 1, 22050);
+      src.connect(this.ctx.destination);
+      src.start(0);
+    } catch { /* nada */ }
     this._pickVoice();
-    return true;
+    // iOS bloquea la voz si la primera frase no sale de un toque: se «estrena» con una vacía.
+    if ('speechSynthesis' in window && !this._speechPrimed) {
+      try {
+        const u = new SpeechSynthesisUtterance(' ');
+        u.volume = 0;
+        speechSynthesis.speak(u);
+        this._speechPrimed = true;
+      } catch { /* nada */ }
+    }
+    await Promise.all([resumed, pending].map((x) => x?.catch?.(() => {})));
+    return this.ctx.state === 'running';
   }
 
   _buildGraph() {
