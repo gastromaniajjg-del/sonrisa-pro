@@ -6,6 +6,7 @@ import * as THREE from '../vendor/three.module.min.js';
 import { DRONE_ACCESSORIES as ACCESSORIES } from './accessories.js';
 import { buildOpenWorld } from './worlds.js';
 import { ToothMascot } from './tooth.js';
+import { Builder } from './builds.js';
 
 const W = 3.2; // ancho del pasillo
 const H = 2.7; // alto
@@ -190,6 +191,7 @@ export class Scene {
     this._buildCorridor();
     this._buildDrone();
     this.tooth = new ToothMascot(this.scene);
+    this.builder = new Builder(this.scene);
     this.tooth.visible = false;
     this.mascotType = 'drone';
     this._worlds = {};
@@ -358,7 +360,22 @@ export class Scene {
     const shell = (this.shell = new THREE.Mesh(new THREE.SphereGeometry(0.3, 40, 24), this.shellMat));
     shell.scale.set(1.3, 0.72, 1.05);
     body.add(shell);
-    const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.08, 24), darkMat);
+    // Cuerpo cúbico (Cubi, de Mundo Cubo)
+    const cube = (this.cubeBody = new THREE.Group());
+    const cb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.42, 0.42), this.shellMat);
+    cube.add(cb);
+    [-0.17, 0.17].forEach((x) => {
+      const ear = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, 0.09), darkMat);
+      ear.position.set(x, 0.25, 0);
+      cube.add(ear);
+    });
+    const jet = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.16), new THREE.MeshBasicMaterial({ color: 0x6fe8ff }));
+    jet.position.y = -0.24;
+    cube.add(jet);
+    this.cubeJet = jet;
+    cube.visible = false;
+    body.add(cube);
+    const belly = (this.belly = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.08, 24), darkMat));
     belly.position.y = -0.2;
     body.add(belly);
 
@@ -368,7 +385,7 @@ export class Scene {
     this.faceCanvas.height = 128;
     this.faceTex = new THREE.CanvasTexture(this.faceCanvas);
     this.faceTex.colorSpace = THREE.SRGBColorSpace;
-    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.21), new THREE.MeshBasicMaterial({ map: this.faceTex, transparent: true }));
+    const face = (this.face = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 0.21), new THREE.MeshBasicMaterial({ map: this.faceTex, transparent: true })));
     face.position.set(0, 0.01, 0.33);
     body.add(face);
 
@@ -574,6 +591,12 @@ export class Scene {
       for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) hex(x * 64 + (y % 2) * 32 + 16, y * 64 + 32, 15);
     })) : null;
     this.shell.scale.set(variant === 'balon' ? 1.05 : 1.3, variant === 'balon' ? 1.05 : 0.72, 1.05);
+    const cubi = variant === 'cubi';
+    this.shell.visible = !cubi;
+    this.belly.visible = !cubi;
+    this.cubeBody.visible = cubi;
+    this.face.position.z = cubi ? 0.215 : 0.33;
+    if (cubi) this.variantColor = 0xff9f43;
     this.droneBody.scale.setScalar(variant === 'hada' ? 0.8 : 1);
     this.setEquipped(this._droneEquipped || {}, 'drone');
   }
@@ -584,6 +607,7 @@ export class Scene {
     if (v === 'hada') this.wings.forEach((w, i) => { w.rotation.y = (i ? -1 : 1) * (0.3 + Math.sin(t * 22) * 0.45); });
     if (v === 'sonda') { this.thruster.scale.y = 0.8 + Math.sin(t * 30) * 0.2; this.thruster.material.opacity = 0.5 + Math.sin(t * 17) * 0.2; }
     if (v === 'balon' && this.mode === 'brush') this.shell.rotation.x -= dt * 2;
+    if (v === 'cubi') this.cubeJet.scale.set(1, 0.7 + Math.sin(t * 25) * 0.3, 1);
   }
 
   // ── API de expresiones y movimiento ──────────────────────────────────────────
@@ -617,11 +641,22 @@ export class Scene {
     this.tooth.setShine(v);
   }
 
+  /** Mundo Cubo: progreso de la construcción de la zona actual (0..1). */
+  setBuild(zone, frac) {
+    this.builder.setProgress(zone, frac);
+  }
+
+  /** Mundo Cubo: construcciones acumuladas (se ven como islas en el inicio). */
+  setVillage(n) {
+    this.builder.setVillage(n);
+  }
+
   /**
    * home: el pasillo avanza despacio · brush: se camina · done: luz de salida · hangar: el dron de cerca
    */
   setMode(mode) {
     this.mode = mode;
+    this.builder.setMode(mode);
     this._exit = 0;
     this._targetSpeed = { home: 0.35, brush: this.theme.speed, done: 0, hangar: 0.12 }[mode];
     if (mode === 'home' || mode === 'hangar') this.setLevel(0, { instant: true });
@@ -669,7 +704,9 @@ export class Scene {
         }
       }
       w.animate(t, dt, cam);
-    } else {
+    }
+    this.builder.update(cam, t, this.worldId === 'cubos');
+    if (!this.open) {
       for (const mod of this.modules) {
         if (mod.position.z > cam.position.z + L) {
           mod.position.z -= MODULES * L;
@@ -706,7 +743,9 @@ export class Scene {
     const d = tooth ? this.tooth.holder : this.drone;
     // Posición del dron respecto a la cámara: siempre en la franja libre entre los paneles.
     const offset = { home: [0, 0.32, -2.7], brush: [0, 0.45, -2.6], done: [0, 0.42, -2.6], hangar: [0, 0.5, -2.3] }[this.mode];
-    const target = new THREE.Vector3(cam.position.x + offset[0], cam.position.y + offset[1], cam.position.z + offset[2]);
+    // En Mundo Cubo el compañero se aparta a la derecha para dejar ver la construcción.
+    const shiftX = this.worldId === 'cubos' && this.mode === 'brush' ? 0.42 : 0;
+    const target = new THREE.Vector3(cam.position.x + offset[0] + shiftX, cam.position.y + offset[1], cam.position.z + offset[2]);
     d.position.lerp(target, Math.min(1, dt * 4));
     this._burst = Math.max(0, this._burst - dt * 0.8);
     let hover = Math.sin(t * 2.4) * 0.03 * m;

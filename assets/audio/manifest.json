@@ -1,9 +1,34 @@
 {
-  "dientin": { "instrumental": false, "voz": [] },
-  "mar": { "instrumental": false, "voz": [] },
-  "bosque": { "instrumental": false, "voz": [] },
-  "dinos": { "instrumental": false, "voz": [] },
-  "espacio": { "instrumental": false, "voz": [] },
-  "partido": { "instrumental": false, "voz": [] },
-  "escapa": { "instrumental": false, "voz": [] }
+  "dientin": {
+    "instrumental": false,
+    "voz": []
+  },
+  "mar": {
+    "instrumental": false,
+    "voz": []
+  },
+  "bosque": {
+    "instrumental": false,
+    "voz": []
+  },
+  "dinos": {
+    "instrumental": false,
+    "voz": []
+  },
+  "espacio": {
+    "instrumental": false,
+    "voz": []
+  },
+  "partido": {
+    "instrumental": false,
+    "voz": []
+  },
+  "cubos": {
+    "instrumental": false,
+    "voz": []
+  },
+  "escapa": {
+    "instrumental": false,
+    "voz": []
+  }
 }

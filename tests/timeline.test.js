@@ -15,8 +15,8 @@ test('128 BPM: 16 compases = 30 s exactos y 4 niveles = 120 s', () => {
   assert.equal(SEGMENTS.at(-1).end, TOTAL_SECONDS);
 });
 
-test('hay 7 temáticas completas', () => {
-  assert.equal(THEMES.length, 7);
+test('hay 8 temáticas completas', () => {
+  assert.equal(THEMES.length, 8);
   for (const t of THEMES) {
     assert.equal(t.levels.length, 4, t.id);
     assert.ok(t.reward.icon && t.reward.one && t.reward.many, t.id);
@@ -80,4 +80,15 @@ test('pasos y zonas por tiempo', () => {
   assert.equal(stepAt(7.5).id, 'fuera');
   assert.equal(stepAt(22.5).id, 'muelas');
   assert.equal(stepAt(120).id, 'muelas');
+});
+
+test('Mundo Cubo: cuatro construcciones que crecen de abajo arriba', async () => {
+  // builds.js usa Three.js, que no necesita navegador para generar la lista de bloques.
+  const { structureBlocks, BUILD_TYPES } = await import('../js/builds.js');
+  assert.deepEqual(BUILD_TYPES, ['casa', 'torre', 'puente', 'castillo']);
+  for (const t of BUILD_TYPES) {
+    const b = structureBlocks(t);
+    assert.ok(b.length > 30, t);
+    for (let i = 1; i < b.length; i++) assert.ok(b[i].y >= b[i - 1].y, `${t} ordenado por altura`);
+  }
 });

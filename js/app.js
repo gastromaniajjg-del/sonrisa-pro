@@ -39,7 +39,11 @@ function applyThemeToWorld() {
   world.setWorld(theme.world);
   world.setMascot(theme.mascot, theme.variant);
   world.setEquipped(progress.data.equipped[mascotKey()], mascotKey());
+  world.setVillage(cubosBuilds());
 }
+
+/** Construcciones de Mundo Cubo acumuladas: 4 por misión completada en esa aventura. */
+const cubosBuilds = () => progress.data.missions.filter((m) => m.theme === 'cubos').length * 4;
 
 const mascotKey = () => (theme.mascot === 'tooth' ? 'tooth' : 'drone');
 
@@ -56,7 +60,9 @@ function applyTheme() {
   title.classList.toggle('glitch', theme.id === 'escapa');
   $('#home-kicker').innerHTML = theme.id === 'escapa' ? '<span class="dot"></span> REC · CINTA 07' : `${theme.emoji} Hola, ${escapeHtml(p.name || 'campeón')}`;
   $('#home-kicker').classList.toggle('rec', theme.id === 'escapa');
-  $('#home-sub').textContent = `${theme.tagline} Cuatro zonas de la boca, dos minutos.`;
+  $('#home-sub').textContent = theme.id === 'cubos' && cubosBuilds()
+    ? `Tu mundo tiene ${cubosBuilds()} construcciones. ¡Vamos a por más!`
+    : `${theme.tagline} Cuatro zonas de la boca, dos minutos.`;
   $('#btn-start').textContent = theme.start;
   ['#reward-icon', '#reward-icon-2'].forEach((s) => { $(s).textContent = theme.reward.icon; });
   ['#wardrobe-label', '#wardrobe-label-2'].forEach((s) => { $(s).textContent = `Taller de ${theme.companion}`; });
@@ -159,12 +165,13 @@ $('#btn-profile').addEventListener('click', () => show('profile'));
 // ── Inicio ──────────────────────────────────────────────────────────────────
 function renderHome() {
   $('#home-stars').textContent = progress.stars;
+  if (theme.id === 'cubos' && cubosBuilds()) $('#home-sub').textContent = `Tu mundo tiene ${cubosBuilds()} construcciones. ¡Vamos a por más!`;
   const next = nextUnlock(progress.stars, mascotKey());
   $('#next-unlock').textContent = next
     ? `${next.stars - progress.stars} ${theme.reward.icon} más para: ${next.icon} ${next.name}`
     : `Taller completo: ${theme.companion} lo tiene todo.`;
   const st = progress.stats();
-  $('#streak').textContent = st.streak ? `🔥 ${st.streak} ${st.streak === 1 ? 'día' : 'días'} seguidos` : '🔥 Empieza tu racha';
+  $('#streak').textContent = st.streak ? `🔥 ${st.streak} ${st.streak === 1 ? 'día seguido' : 'días seguidos'}` : '🔥 Empieza tu racha';
   const slot = new Date().getHours() >= 4 && new Date().getHours() < 14 ? 'mañana' : 'noche';
   $('#slot-hint').textContent = progress.slotRewarded()
     ? `Premio de esta ${slot} conseguido ✓`
@@ -268,6 +275,7 @@ timer.on('tick', ({ elapsed, remaining }) => {
   $('#clean-pct').textContent = `LIMPIEZA ${Math.floor((elapsed / TOTAL_SECONDS) * 100)}%`;
   const segIdx = Math.min(3, Math.floor(elapsed / SEGMENT_SECONDS));
   world?.setShine(((elapsed - segIdx * SEGMENT_SECONDS) / SEGMENT_SECONDS) * 0.6 + segIdx * 0.1);
+  if (theme.id === 'cubos') world?.setBuild(segIdx, (elapsed - segIdx * SEGMENT_SECONDS) / SEGMENT_SECONDS);
   // Parpadeos de luz de «Escapa», sincronizados con el chasquido de la música.
   if (theme.id === 'escapa') {
     while (nextFlicker < FLICKERS.length && FLICKERS[nextFlicker] <= elapsed) {
@@ -317,6 +325,7 @@ timer.on('complete', () => {
   $('#clean-pct').textContent = 'LIMPIEZA 100%';
   mouth.finish();
   showDone(progress.completeMission(new Date(), theme.id));
+  world?.setVillage(cubosBuilds());
 });
 
 // Recuadro de texto: la letra de la canción (Dientín, con música) o lo que dice la voz.
@@ -376,6 +385,7 @@ function showDone(result) {
   $('#done-text').textContent = result.rewarded
     ? `¡Bien hecho, ${name}! +1 ${theme.reward.icon} · Llevas ${n} ${n === 1 ? theme.reward.one : theme.reward.many}.${streak}`
     : `¡Bien hecho, ${name}! El premio de esta ${result.slot === 'manana' ? 'mañana' : 'noche'} ya lo tenías. El siguiente, ${result.slot === 'manana' ? 'esta noche' : 'mañana por la mañana'}.${streak}`;
+  if (theme.id === 'cubos') $('#done-text').textContent += ` Has construido ${theme.builds.slice(0, 3).join(', ')} y ${theme.builds[3]}.`;
   const unlocked = result[mascotKey()];
   const box = $('#unlocked');
   box.hidden = !unlocked.length;
