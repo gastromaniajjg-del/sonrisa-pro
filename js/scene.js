@@ -3,7 +3,9 @@
 // funciona sin conexión. Estética propia de «espacios liminales», sin copiar obras concretas.
 
 import * as THREE from '../vendor/three.module.min.js';
-import { ACCESSORIES } from './accessories.js';
+import { DRONE_ACCESSORIES as ACCESSORIES } from './accessories.js';
+import { buildOpenWorld } from './worlds.js';
+import { ToothMascot } from './tooth.js';
 
 const W = 3.2; // ancho del pasillo
 const H = 2.7; // alto
@@ -187,6 +189,13 @@ export class Scene {
 
     this._buildCorridor();
     this._buildDrone();
+    this.tooth = new ToothMascot(this.scene);
+    this.tooth.visible = false;
+    this.mascotType = 'drone';
+    this._worlds = {};
+    this.open = null;
+    this.worldId = 'pasillos';
+    this._fogFar = 21;
     this.setTheme('oficinas');
 
     this._resize = this._resize.bind(this);
@@ -196,6 +205,8 @@ export class Scene {
 
   // ── Pasillo ─────────────────────────────────────────────────────────────────
   _buildCorridor() {
+    this.corridorGroup = new THREE.Group();
+    this.scene.add(this.corridorGroup);
     this.wallMat = new THREE.MeshLambertMaterial();
     this.floorMat = new THREE.MeshLambertMaterial();
     this.ceilMat = new THREE.MeshLambertMaterial();
@@ -243,7 +254,7 @@ export class Scene {
       m.userData = { panel, doors };
       m.position.z = -i * L;
       this._randomize(m);
-      this.scene.add(m);
+      this.corridorGroup.add(m);
       this.modules.push(m);
     }
   }
@@ -268,11 +279,59 @@ export class Scene {
     this.lamp.color.setHex(th.light);
     this.ambient.color.setHex(th.light);
     this.scene.fog.color.setHex(th.fog);
+    this.scene.fog.near = 1.5;
+    this._fogFar = 21;
     this.renderer.setClearColor(th.fog);
+  }
+
+  // ── Mundos de las temáticas ─────────────────────────────────────────────────
+  /** 'pasillos' (Escapa) o uno de los mundos abiertos de worlds.js. */
+  setWorld(worldId) {
+    if (worldId === this.worldId && (worldId === 'pasillos' || this.open)) { this.setLevel(0, { instant: true }); return; }
+    this.worldId = worldId;
+    const corridor = worldId === 'pasillos';
+    this.corridorGroup.visible = corridor;
+    Object.values(this._worlds).forEach((w) => { w.group.visible = false; });
+    this.open = null;
+    if (!corridor) {
+      const w = (this._worlds[worldId] ??= this._addWorld(worldId));
+      w.group.visible = true;
+      // Recolocar la cinta de módulos delante de la cámara.
+      w.modules.forEach((m, i) => { m.position.z = this.camera.position.z + w.length - i * w.length; });
+      this.open = w;
+    } else {
+      this.modules.forEach((m, i) => { m.position.z = this.camera.position.z + L - i * L; });
+    }
+    this.setLevel(0, { instant: true });
+  }
+
+  _addWorld(id) {
+    const w = buildOpenWorld(id);
+    this.scene.add(w.group);
+    return w;
+  }
+
+  _applyOpen(i) {
+    const p = this.open.palettes[i];
+    this.open.setPalette(i);
+    this.theme = { light: p.light, fog: p.sky, amb: p.amb, speed: p.speed };
+    this.lamp.color.setHex(p.light);
+    this.ambient.color.setHex(p.light);
+    this.scene.fog.color.setHex(p.sky);
+    this.scene.fog.near = this.worldId === 'espacio' ? 10 : 4;
+    this._fogFar = this.worldId === 'espacio' ? 60 : 34;
+    this.renderer.setClearColor(p.sky);
   }
 
   /** Nivel 0-3. El cambio se hace con un apagón corto de los fluorescentes. */
   setLevel(i, { instant = false } = {}) {
+    if (this.open) {
+      if (instant) { this._applyOpen(i); return; }
+      this.flicker(0.35);
+      clearTimeout(this._themeTimer);
+      this._themeTimer = setTimeout(() => this._applyOpen(i), 180);
+      return;
+    }
     const name = ['oficinas', 'sotano', 'azulejos', 'emergencia'][i];
     if (instant) { this.setTheme(name); return; }
     this.flicker(1);
@@ -296,7 +355,7 @@ export class Scene {
     this.shellMat = new THREE.MeshStandardMaterial({ color: 0xe9edf0, roughness: 0.4, metalness: 0.15 });
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x23272d, roughness: 0.5 });
 
-    const shell = new THREE.Mesh(new THREE.SphereGeometry(0.3, 40, 24), this.shellMat);
+    const shell = (this.shell = new THREE.Mesh(new THREE.SphereGeometry(0.3, 40, 24), this.shellMat));
     shell.scale.set(1.3, 0.72, 1.05);
     body.add(shell);
     const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.18, 0.08, 24), darkMat);
@@ -315,6 +374,7 @@ export class Scene {
 
     // Brazos y rotores
     this.rotors = [];
+    this.arms = [];
     const armG = new THREE.CylinderGeometry(0.025, 0.025, 0.36, 8);
     const discG = new THREE.CircleGeometry(0.16, 28);
     this.discMat = new THREE.MeshBasicMaterial({ color: 0xbfd6e6, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
@@ -324,6 +384,7 @@ export class Scene {
       arm.rotation.y = Math.atan2(z, x) * -1;
       arm.position.set(x * 0.28, 0.05, z * 0.2);
       body.add(arm);
+      this.arms.push(arm);
       const rotor = new THREE.Group();
       rotor.position.set(x * 0.44, 0.1, z * 0.32);
       const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.06, 12), darkMat);
@@ -341,6 +402,56 @@ export class Scene {
     this.led = new THREE.Mesh(new THREE.SphereGeometry(0.025, 12, 8), new THREE.MeshBasicMaterial({ color: 0x3dff8a }));
     this.led.position.set(0, 0.22, 0.05);
     body.add(this.led);
+
+    // Piezas de las variantes (submarino, hada, sonda, balón…)
+    const V = (this.variantParts = {});
+    const propeller = new THREE.Group();
+    const pHub = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.12, 12), darkMat);
+    pHub.rotation.x = -Math.PI / 2;
+    this.propBlades = new THREE.Group();
+    for (let i = 0; i < 3; i++) {
+      const bl = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.16, 0.01), darkMat);
+      bl.position.y = 0.08;
+      const g = new THREE.Group();
+      g.rotation.z = (i / 3) * Math.PI * 2;
+      g.add(bl);
+      this.propBlades.add(g);
+    }
+    this.propBlades.position.z = -0.07;
+    propeller.add(pHub, this.propBlades);
+    propeller.position.z = -0.36;
+    body.add(propeller);
+    V.propeller = propeller;
+    const periscope = new THREE.Group();
+    const pTube = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.22, 8), darkMat);
+    pTube.position.y = 0.11;
+    const pTop = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.1), darkMat);
+    pTop.position.set(0, 0.22, 0.03);
+    periscope.add(pTube, pTop);
+    periscope.position.set(0.08, 0.18, -0.05);
+    body.add(periscope);
+    V.periscope = periscope;
+    const wingMat = new THREE.MeshBasicMaterial({ color: 0xe8d4ff, transparent: true, opacity: 0.55, side: THREE.DoubleSide });
+    this.wings = [-1, 1].map((side) => {
+      const w = new THREE.Group();
+      const a = new THREE.Mesh(new THREE.CircleGeometry(0.22, 20), wingMat);
+      a.scale.set(1, 0.6, 1);
+      a.position.set(side * 0.2, 0.08, 0);
+      const b = new THREE.Mesh(new THREE.CircleGeometry(0.14, 16), wingMat);
+      b.scale.set(1, 0.6, 1);
+      b.position.set(side * 0.16, -0.12, 0);
+      w.add(a, b);
+      w.position.set(side * 0.18, 0.08, -0.15);
+      body.add(w);
+      return w;
+    });
+    V.wings = { set visible(v) { this._v = v; }, get visible() { return this._v; } };
+    const thruster = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 16, 1, true), new THREE.MeshBasicMaterial({ color: 0x6fe8ff, transparent: true, opacity: 0.7 }));
+    thruster.rotation.x = Math.PI / 2;
+    thruster.position.z = -0.42;
+    body.add(thruster);
+    V.thruster = thruster;
+    this.thruster = thruster;
 
     // Pinza con cepillo para enseñar el movimiento
     const claw = (this.claw = new THREE.Group());
@@ -411,7 +522,9 @@ export class Scene {
     Object.values(A).forEach((m) => { m.visible = false; });
   }
 
-  setEquipped(equipped) {
+  setEquipped(equipped, mascot = this.mascotType) {
+    if (mascot === 'tooth') { this.tooth.setEquipped(equipped); return; }
+    this._droneEquipped = equipped;
     const ids = Object.values(equipped);
     for (const [id, m] of Object.entries(this.acc)) m.visible = ids.includes(id);
     const turbo = ids.includes('helices');
@@ -421,7 +534,8 @@ export class Scene {
     });
     this._holo = false;
     this.shellMat.map = null;
-    let color = 0xe9edf0;
+    let color = this.variantColor ?? 0xe9edf0;
+    if (!equipped.carcasa && this.variantMap) this.shellMat.map = this.variantMap;
     const skin = ACCESSORIES.find((a) => a.id === equipped.carcasa);
     if (skin?.color === 'holo') this._holo = true;
     else if (skin?.color === 'camo') {
@@ -434,14 +548,55 @@ export class Scene {
       }));
     } else if (skin) color = skin.color;
     this.shellMat.color.setHex(this.shellMat.map ? 0xffffff : color);
+    this.shellMat.emissive.setHex(this.variant === 'hada' && !skin ? 0x8a3fbf : 0x000000);
     this.shellMat.metalness = skin?.id === 'dorada' ? 0.8 : 0.15;
     this.shellMat.needsUpdate = true;
+  }
+
+  // ── Variantes del dron ─────────────────────────────────────────────────────
+  setVariant(variant) {
+    this.variant = variant;
+    const rotors = ['dron', 'safari'].includes(variant);
+    this.rotors.forEach(({ rotor }) => { rotor.visible = rotors; });
+    this.arms.forEach((a) => { a.visible = rotors; });
+    const V = this.variantParts;
+    V.propeller.visible = variant === 'submarino';
+    V.periscope.visible = variant === 'submarino';
+    this.wings.forEach((w) => { w.visible = variant === 'hada'; });
+    V.thruster.visible = variant === 'sonda';
+    this.variantColor = { dron: 0xe9edf0, submarino: 0xffd23a, hada: 0xf3d2ff, safari: 0xc9b67a, sonda: 0xf4f6fa, balon: 0xffffff }[variant] ?? 0xe9edf0;
+    this.variantMap = variant === 'balon' ? (this._ballTex ??= canvasTex(256, (g, s) => {
+      g.fillStyle = '#ffffff'; g.fillRect(0, 0, s, s);
+      g.fillStyle = '#1b1f27';
+      const hex = (cx, cy, r) => { g.beginPath(); for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2 - Math.PI / 2; g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); } g.closePath(); g.fill(); };
+      for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) hex(x * 64 + (y % 2) * 32 + 16, y * 64 + 32, 15);
+    })) : null;
+    this.shell.scale.set(variant === 'balon' ? 1.05 : 1.3, variant === 'balon' ? 1.05 : 0.72, 1.05);
+    this.droneBody.scale.setScalar(variant === 'hada' ? 0.8 : 1);
+    this.setEquipped(this._droneEquipped || {}, 'drone');
+  }
+
+  _animateVariant(dt, t) {
+    const v = this.variant;
+    if (v === 'submarino') this.propBlades.rotation.z += dt * 18;
+    if (v === 'hada') this.wings.forEach((w, i) => { w.rotation.y = (i ? -1 : 1) * (0.3 + Math.sin(t * 22) * 0.45); });
+    if (v === 'sonda') { this.thruster.scale.y = 0.8 + Math.sin(t * 30) * 0.2; this.thruster.material.opacity = 0.5 + Math.sin(t * 17) * 0.2; }
+    if (v === 'balon' && this.mode === 'brush') this.shell.rotation.x -= dt * 2;
   }
 
   // ── API de expresiones y movimiento ──────────────────────────────────────────
   setExpression(mood) {
     this.mood = mood;
+    this.tooth.setExpression(mood);
     if (mood === 'animado' || mood === 'contento') this._burst = 1;
+  }
+
+  /** Compañero de la temática: 'tooth' (Dientín) o 'drone' con su variante. */
+  setMascot(type, variant = 'dron') {
+    this.mascotType = type;
+    this.tooth.visible = type === 'tooth';
+    this.drone.visible = type !== 'tooth';
+    if (type !== 'tooth') this.setVariant(variant);
   }
 
   cheer(ms = 1600) {
@@ -453,6 +608,11 @@ export class Scene {
   setBrushMotion(motion) {
     this.brushMotion = motion;
     this.claw.visible = !!motion;
+    this.tooth.setBrushMotion(motion);
+  }
+
+  setShine(v) {
+    this.tooth.setShine(v);
   }
 
   /**
@@ -462,7 +622,7 @@ export class Scene {
     this.mode = mode;
     this._exit = 0;
     this._targetSpeed = { home: 0.35, brush: this.theme.speed, done: 0, hangar: 0.12 }[mode];
-    if (mode === 'home' || mode === 'hangar') this.setTheme('oficinas');
+    if (mode === 'home' || mode === 'hangar') this.setLevel(0, { instant: true });
   }
 
   start() {
@@ -498,10 +658,21 @@ export class Scene {
     cam.rotation.set(walking ? Math.sin(t * 6.5 + 1) * 0.004 * m : 0, 0, 0);
 
     // Reciclar módulos que quedan detrás
-    for (const mod of this.modules) {
-      if (mod.position.z > cam.position.z + L) {
-        mod.position.z -= MODULES * L;
-        this._randomize(mod);
+    if (this.open) {
+      const w = this.open;
+      for (const mod of w.modules) {
+        if (mod.position.z > cam.position.z + w.length) {
+          mod.position.z -= w.modules.length * w.length;
+          w.recycle(mod);
+        }
+      }
+      w.animate(t, dt, cam);
+    } else {
+      for (const mod of this.modules) {
+        if (mod.position.z > cam.position.z + L) {
+          mod.position.z -= MODULES * L;
+          this._randomize(mod);
+        }
       }
     }
     this.lamp.position.set(0, H - 0.3, cam.position.z - 1.5);
@@ -525,11 +696,12 @@ export class Scene {
     this.ambient.color.setHex(this.theme.light).lerp(new THREE.Color(0xffffff), exit);
     this.panelOn.color.setHex(this.theme.light).multiplyScalar(0.35 + 0.65 * light).lerp(new THREE.Color(0xffffff), exit);
     this.scene.fog.color.setHex(this.theme.fog).lerp(new THREE.Color(0xffffff), exit);
-    this.scene.fog.far = 21 - exit * 12;
+    this.scene.fog.far = this._fogFar - exit * this._fogFar * 0.55;
     this.renderer.setClearColor(this.scene.fog.color);
 
-    // Dron
-    const d = this.drone;
+    // Compañero (dron o Dientín)
+    const tooth = this.mascotType === 'tooth';
+    const d = tooth ? this.tooth.holder : this.drone;
     // Posición del dron respecto a la cámara: siempre en la franja libre entre los paneles.
     const offset = { home: [0, 0.32, -2.7], brush: [0, 0.45, -2.6], done: [0, 0.42, -2.6], hangar: [0, 0.5, -2.3] }[this.mode];
     const target = new THREE.Vector3(cam.position.x + offset[0], cam.position.y + offset[1], cam.position.z + offset[2]);
@@ -540,8 +712,15 @@ export class Scene {
     if (this.mood === 'animado') hover += Math.abs(Math.sin(t * 9)) * 0.06 * m * (0.3 + this._burst);
     if (this.mood === 'contento') { hover += Math.abs(Math.sin(t * 5)) * 0.1 * m; spin = this.reducedMotion ? 0 : t * 2.2; }
     if (this.mode === 'hangar') spin = Math.sin(t * 0.6) * 0.9;
+    if (tooth) {
+      // Dientín tiene su propia animación (saltos, capa, brazos): solo lo colocamos.
+      d.rotation.set(0, this.mode === 'hangar' ? Math.sin(t * 0.6) * 0.6 : 0, 0);
+      this.tooth.update(dt, t);
+      return;
+    }
     d.position.y += hover;
     d.rotation.set(0.12 + Math.sin(t * 1.3) * 0.05 * m, spin, Math.sin(t * 1.7) * 0.06 * m);
+    this._animateVariant(dt, t);
 
     const rotorSpeed = 40 + (this.mood === 'contento' ? 25 : 0);
     this.rotors.forEach(({ blade }, i) => { blade.rotation.y += dt * rotorSpeed * (i % 2 ? 1 : -1); });

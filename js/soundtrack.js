@@ -1,4 +1,4 @@
-// «La misión de la sonrisa · Escapa en 2 minutos» — banda sonora original y guion de radio.
+// Temática «Escapa en 2:00» — banda sonora original.
 // Todo medido en segundos desde el inicio del temporizador. Nada puede pasar de 120 s:
 // los tests (tests/timeline.test.js) lo comprueban.
 
@@ -11,37 +11,7 @@ export const TRACK = {
   duration: TOTAL_SECONDS,
 };
 
-// ── Guion de radio ──────────────────────────────────────────────────────────
-// La «Base» guía a Dani por radio. Suena en los modos «Música + radio» y «Solo radio».
-// En «Solo música» el mismo texto aparece en pantalla.
-// Si existe assets/audio/radio/<id>.mp3 se reproduce el archivo (con filtro de radio);
-// si no, voz del sistema en español precedida de un chasquido de radio.
-// maxSeconds: tiempo hasta el siguiente mensaje (la voz se corta si se pasa).
-export const RADIO_CUES = [
-  { t: 0.4, id: 'n1', text: 'Aquí Base. Te recibo, Dani. Nivel uno: arriba a la derecha. Cepillo inclinado hacia la encía.' },
-  { t: 7.5, id: 'n1-fuera', text: 'Círculos pequeños por fuera. Sin prisa.' },
-  { t: 15, id: 'n1-dentro', text: 'Ahora la cara de dentro.' },
-  { t: 22.5, id: 'n1-muelas', text: 'Muelas: adelante y atrás, por encima.' },
-  { t: 30, id: 'n2', text: 'Nivel dos. Arriba a la izquierda.' },
-  { t: 37.5, id: 'n2-fuera', text: 'Círculos por fuera. Suave, no aprietes.' },
-  { t: 45, id: 'n2-dentro', text: 'Por dentro. Que no se escape ninguno.' },
-  { t: 52.5, id: 'n2-muelas', text: 'Muelas de arriba. Adelante y atrás.' },
-  { t: 60, id: 'n3', text: 'Nivel tres. Abajo a la izquierda. Vas por la mitad.' },
-  { t: 67.5, id: 'n3-fuera', text: 'Por fuera, círculos pequeños.' },
-  { t: 75, id: 'n3-dentro', text: 'Cara de dentro.' },
-  { t: 82.5, id: 'n3-muelas', text: 'Muelas de abajo. Adelante y atrás.' },
-  { t: 90, id: 'n4', text: 'Último nivel. Abajo a la derecha. La salida está cerca.' },
-  { t: 97.5, id: 'n4-fuera', text: 'Círculos por fuera.' },
-  { t: 105, id: 'n4-dentro', text: 'Por dentro. Casi lo tienes.' },
-  { t: 112.5, id: 'n4-muelas', text: 'Muelas, adelante y atrás.' },
-  { t: 116.6, id: 'salida', text: 'Salida localizada. Has escapado.' },
-].map((cue, i, all) => ({ ...cue, maxSeconds: (all[i + 1]?.t ?? TOTAL_SECONDS) - cue.t }));
-
-export function radioAt(t) {
-  let last = null;
-  for (const c of RADIO_CUES) if (c.t <= t) last = c;
-  return last;
-}
+// El guion de voz de esta temática está en js/themes.js (id «escapa»).
 
 // Parpadeos de los fluorescentes: los usan a la vez la música (chasquido) y el escenario (luz).
 export const FLICKERS = [11.3, 26.1, 43.9, 56.2, 73.4, 86.0, 98.7, 108.2];

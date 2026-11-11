@@ -10,14 +10,19 @@
   </style>
 </head>
 <body>
-  <h1>Banda sonora de «Escapa en 2 minutos»</h1>
+  <h1>Música de «La misión de la sonrisa»</h1>
   <p>Genera en WAV la música que suena en la app (120,000 s, 128 BPM, 44,1 kHz).
      Sirve de referencia para grabar los mensajes de radio o producir una versión de estudio.</p>
+  <label>Temática: <select id="theme"></select></label><br>
   <button id="full">Descargar banda sonora</button>
   <button id="click">Descargar claqué (metrónomo) con avisos de nivel</button>
   <p id="out"></p>
   <script type="module">
     import { renderAll } from '../js/music-engine.js';
+    import { THEMES, getTheme } from '../js/themes.js';
+    import { arrangementFor } from '../js/arrangements.js';
+    const sel = document.getElementById('theme');
+    sel.innerHTML = THEMES.map((t) => `<option value="${t.id}">${t.emoji} ${t.name}</option>`).join('');
     import { TOTAL_SECONDS, BEAT_SECONDS, SEGMENT_SECONDS } from '../js/config.js';
 
     const RATE = 44100;
@@ -54,7 +59,7 @@
           o.start(t); o.stop(t + 0.06);
         }
       } else {
-        renderAll(ctx, ctx.destination);
+        renderAll(ctx, ctx.destination, arrangementFor(getTheme(sel.value)));
       }
       return ctx.startRendering();
     }
@@ -69,7 +74,7 @@
       a.click();
       out.textContent = `Listo: ${name} (${buf.duration.toFixed(3)} s)`;
     }
-    document.getElementById('full').onclick = () => download('full', 'escapa-banda-sonora.wav');
+    document.getElementById('full').onclick = () => download('full', `musica-${sel.value}.wav`);
     document.getElementById('click').onclick = () => download('click', 'escapa-claque.wav');
     window.__render = render;
     window.__toWav = toWav;
