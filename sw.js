@@ -1,6 +1,6 @@
 // Service worker: guarda la app completa en el móvil para que funcione sin Internet.
 // Al cambiar cualquier archivo, sube la versión para que se actualice la caché.
-const VERSION = 'mision-sonrisa-v5';
+const VERSION = 'mision-sonrisa-v6';
 
 const CORE = [
   './',
@@ -15,6 +15,7 @@ const CORE = [
   'js/arrangements.js',
   'js/worlds.js',
   'js/tooth.js',
+  'js/builds.js',
   'js/timer.js',
   'js/music-engine.js',
   'js/audio-director.js',

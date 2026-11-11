@@ -74,6 +74,12 @@ const PALETTES = {
     { sky: 0x0b0b14, light: 0xe0e0e8, amb: 1.4, ground: null, speed: 1.8, planet: 0x9a9088 },
     { sky: 0x0b1442, light: 0xc8d8ff, amb: 1.5, ground: null, speed: 2.0, planet: 0x4f7bff },
   ],
+  cubos: [
+    { sky: 0x8fd3ff, light: 0xffffff, amb: 2.2, ground: 0x6cc24a, speed: 0.6 },
+    { sky: 0x9fd6b0, light: 0xf4fff0, amb: 2.0, ground: 0x4f9a3a, speed: 0.6 },
+    { sky: 0xcfe3f2, light: 0xffffff, amb: 2.2, ground: 0xb8c0c8, speed: 0.6 },
+    { sky: 0x2a1f4a, light: 0xd8c8ff, amb: 1.6, ground: 0x4a3a6a, speed: 0.6 },
+  ],
   estadio: [
     { sky: 0x8fd0ff, light: 0xffffff, amb: 2.1, ground: 0x3f9e3a, speed: 1.2 },
     { sky: 0xf4b06a, light: 0xffe6c8, amb: 2.0, ground: 0x3a9136, speed: 1.3 },
@@ -313,6 +319,52 @@ function makeProps(id) {
       };
       return { near: [asteroid, asteroid], far: [planet, asteroid] };
     }
+    case 'cubos': {
+      const B = 0.5; // tamaño del bloque del paisaje
+      const box = new THREE.BoxGeometry(B * 0.98, B * 0.98, B * 0.98);
+      const mats = {
+        trunk: lam(0x8a5a34), leaf: lam(0x3fae4a), leaf2: lam(0x2f8f3f), rock: lam(0x9aa3ad), snow: lam(0xf4f8ff),
+        water: lam(0x3fa9f5, { transparent: true, opacity: 0.75 }), crystal: lam(0xb27dff, { emissive: 0x7a3fff, emissiveIntensity: 0.6 }),
+        hill: lam(0x5fb848), dirt: lam(0xa0703f),
+      };
+      const cube = (g, x, y, z, m) => { const c = new THREE.Mesh(box, mats[m]); c.position.set(x * B, y * B + B / 2, z * B); g.add(c); };
+      const tree = () => {
+        const g = new THREE.Group();
+        const h = 3 + Math.floor(r() * 3);
+        for (let y = 0; y < h; y++) cube(g, 0, y, 0, 'trunk');
+        for (let x = -1; x <= 1; x++) for (let z = -1; z <= 1; z++) for (let y = h - 1; y <= h; y++) if (!(x === 0 && z === 0 && y < h)) cube(g, x, y, z, r() < 0.5 ? 'leaf' : 'leaf2');
+        cube(g, 0, h + 1, 0, 'leaf');
+        return g;
+      };
+      const hill = () => {
+        const g = new THREE.Group();
+        const w = 3 + Math.floor(r() * 2);
+        for (let y = 0; y < w; y++) for (let x = -w + y; x <= w - y; x++) for (let z = -1; z <= 1; z++) cube(g, x, y, z, y === w - 1 ? 'snow' : r() < 0.15 ? 'dirt' : 'hill');
+        return g;
+      };
+      const rock = () => {
+        const g = new THREE.Group();
+        cube(g, 0, 0, 0, 'rock'); cube(g, 1, 0, 0, 'rock'); cube(g, 0, 1, 0, 'rock');
+        return g;
+      };
+      const pool = () => {
+        const g = new THREE.Group();
+        for (let x = 0; x < 3; x++) for (let z = 0; z < 2; z++) { const c = new THREE.Mesh(box, mats.water); c.scale.y = 0.2; c.position.set(x * B, 0.05, z * B); g.add(c); }
+        return g;
+      };
+      const crystal = () => {
+        const g = new THREE.Group();
+        for (let i = 0; i < 3; i++) {
+          const c = new THREE.Mesh(box, mats.crystal);
+          c.scale.set(0.5, 1.2 + r(), 0.5);
+          c.position.set((r() - 0.5) * 0.6, 0.4, (r() - 0.5) * 0.6);
+          c.rotation.set(0, Math.PI / 4, (r() - 0.5) * 0.4);
+          g.add(c);
+        }
+        return g;
+      };
+      return { near: [rock, pool, crystal, rock], far: [tree, tree, hill] };
+    }
     case 'estadio': {
       const crowd = tex(128, (g, s) => {
         const rr = rng(9);
@@ -359,6 +411,19 @@ function groundTexture(id) {
       g.fillRect(s * 0.31, 0, 4, s); // líneas de banda del campo
       g.fillRect(s * 0.69 - 4, 0, 4, s);
     }, 1, 1);
+    case 'cubos': return tex(256, (g, s) => {
+      // Cuadrícula de bloques lisos con ligeras variaciones de tono (estilo propio, sin texturas pixeladas).
+      const rr = rng(21);
+      const n = 8;
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+        const v = 0.88 + rr() * 0.12;
+        g.fillStyle = `rgb(${Math.round(255 * v)},${Math.round(255 * v)},${Math.round(255 * v)})`;
+        g.fillRect((x * s) / n, (y * s) / n, s / n, s / n);
+      }
+      g.strokeStyle = 'rgba(0,0,0,.12)';
+      g.lineWidth = 2;
+      for (let i = 0; i <= n; i++) { g.beginPath(); g.moveTo((i * s) / n, 0); g.lineTo((i * s) / n, s); g.stroke(); g.beginPath(); g.moveTo(0, (i * s) / n); g.lineTo(s, (i * s) / n); g.stroke(); }
+    }, 11, 1.5);
     default: return tex(256, speckle('#7ed36a', ['#5fae4a', '#9ae07a', '#ffffff'], 700), 6, 1);
   }
 }
@@ -425,9 +490,10 @@ export function buildOpenWorld(id) {
     jungla: { n: 40, color: 0xfff6c0, size: 0.05, rise: 0.02, spread: [8, 3] },
     espacio: { n: 700, color: 0xffffff, size: 0.07, rise: 0, spread: [26, 18], stars: true },
     estadio: { n: 0 },
+    cubos: { n: 0 },
   }[id];
   let particles = null;
-  if (pcfg.n) {
+  if (pcfg && pcfg.n) {
     const pos = new Float32Array(pcfg.n * 3);
     for (let i = 0; i < pcfg.n; i++) {
       pos[i * 3] = (r() - 0.5) * pcfg.spread[0] * 2;

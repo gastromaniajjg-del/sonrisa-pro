@@ -169,6 +169,30 @@ Niveles: Primer cuarto · Segundo cuarto · Tercer cuarto · Último cuarto. «N
 | `n4-muelas.mp3` | 1:52.500 | 3.8 s | Muelas, adelante y atrás. |
 | `salida.mp3` | 1:56.600 | 3.1 s | ¡Final del partido! ¡Victoria para NOMBRE! |
 
+## 🧱 Mundo Cubo — frases de voz (`assets/audio/cubos/voz/<id>.mp3`)
+
+Niveles: Pradera · Bosque · Montaña · Cueva de cristales. «NOMBRE» se sustituye por el nombre del perfil (en una grabación, omítelo).
+
+| Archivo | Entra en | Duración máxima | Texto |
+|---|---|---|---|
+| `n1.mp3` | 0:00.400 | 6.8 s | ¡Hola, NOMBRE! Soy Cubi. Vamos a construir una casa en la pradera: arriba a la derecha. |
+| `n1-fuera.mp3` | 0:07.500 | 7.2 s | Círculos pequeños por fuera. Sin prisa. |
+| `n1-dentro.mp3` | 0:15.000 | 7.2 s | Ahora la cara de dentro. |
+| `n1-muelas.mp3` | 0:22.500 | 7.2 s | Muelas: adelante y atrás, por encima. |
+| `n2.mp3` | 0:30.000 | 7.2 s | ¡Casa terminada! Ahora una torre en el bosque: arriba a la izquierda. |
+| `n2-fuera.mp3` | 0:37.500 | 7.2 s | Círculos por fuera. Suave, no aprietes. |
+| `n2-dentro.mp3` | 0:45.000 | 7.2 s | Por dentro. Que no se escape ninguno. |
+| `n2-muelas.mp3` | 0:52.500 | 7.2 s | Muelas de arriba. Adelante y atrás. |
+| `n3.mp3` | 1:00.000 | 7.2 s | ¡Torre lista! Un puente en la montaña: abajo a la izquierda. Vas por la mitad. |
+| `n3-fuera.mp3` | 1:07.500 | 7.2 s | Por fuera, círculos pequeños. |
+| `n3-dentro.mp3` | 1:15.000 | 7.2 s | Cara de dentro. |
+| `n3-muelas.mp3` | 1:22.500 | 7.2 s | Muelas de abajo. Adelante y atrás. |
+| `n4.mp3` | 1:30.000 | 7.2 s | ¡Puente hecho! Y ahora un castillo en la cueva: abajo a la derecha. |
+| `n4-fuera.mp3` | 1:37.500 | 7.2 s | Círculos por fuera. |
+| `n4-dentro.mp3` | 1:45.000 | 7.2 s | Por dentro. Casi lo tienes. |
+| `n4-muelas.mp3` | 1:52.500 | 3.8 s | Muelas, adelante y atrás. |
+| `salida.mp3` | 1:56.600 | 3.1 s | ¡Castillo terminado, NOMBRE! Tu mundo ha crecido. |
+
 ## 🚪 Escapa en 2:00 — frases de voz (`assets/audio/escapa/voz/<id>.mp3`)
 
 Niveles: Nivel 1 · Nivel 2 · Nivel 3 · Nivel 4. «NOMBRE» se sustituye por el nombre del perfil (en una grabación, omítelo).

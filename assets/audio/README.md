@@ -9,7 +9,7 @@ assets/audio/<aventura>/musica.mp3        sustituye a la música generada
 assets/audio/<aventura>/voz/<id>.mp3      una frase de voz
 ```
 
-`<aventura>` es uno de estos: `dientin`, `mar`, `bosque`, `dinos`, `espacio`, `partido`, `escapa`. Los `id` de las frases, su texto y la duración máxima de cada una están en `docs/tiempos.md`.
+`<aventura>` es uno de estos: `dientin`, `mar`, `bosque`, `dinos`, `espacio`, `partido`, `cubos`, `escapa`. Los `id` de las frases, su texto y la duración máxima de cada una están en `docs/tiempos.md`.
 
 Requisitos:
 - **Música**: empieza en 0:00 exacto, a 128 BPM, con los cambios de zona en 0:30, 1:00 y 1:30. Si dura más de 120 s, se corta.
@@ -24,7 +24,7 @@ En `manifest.json`, por ejemplo:
 "mar": { "instrumental": true, "voz": ["n1", "n1-fuera", "n2", "salida"] }
 ```
 
-Después, sube la versión de la caché en `sw.js` (`VERSION = 'mision-sonrisa-v6'`) para que los móviles con la app instalada descarguen y guarden los audios nuevos.
+Después, sube la versión de la caché en `sw.js` (`VERSION = 'mision-sonrisa-v7'`) para que los móviles con la app instalada descarguen y guarden los audios nuevos.
 
 ## Reglas que aplica la app
 

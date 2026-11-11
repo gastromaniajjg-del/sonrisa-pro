@@ -16,9 +16,12 @@ Todas comparten el mismo reloj: cuatro zonas de 30 s y cuatro pasos de 7,5 s, co
 | 🦕 Dinosaurios | 5–11 | Rex-1, dron de expedición | Selva · Río · Cañón · Volcán | Tambores graves y río | 🦴 fósiles |
 | 🚀 Misión espacial | 7–12 | Sonda S-1 | Planeta Hielo · Planeta Rojo · Cinturón de asteroides · Nebulosa Azul | Electrónica épica con pitidos de radio | 💎 cristales estelares |
 | ⚽ Partido | 6–14 | Bala, balón con cara | Cuatro cuartos | Ritmo de grada, palmas y silbato | 🏅 medallas |
+| 🧱 Mundo Cubo | 6–13 | Cubi, robot de cubos | Pradera · Bosque · Montaña · Cueva de cristales | Chiptune (estilo consola antigua) | 🟨 bloques dorados |
 | 🚪 Escapa en 2:00 | 10–14 | Denti, dron explorador | Oficinas · Sótano · Azulejos · Emergencia | Ambiental con zumbido de fluorescentes | 🗺️ fragmentos de mapa |
 
-Todo es original: escenarios y personajes generados con código, sin equipos, escudos ni personajes reales.
+Todo es original: escenarios y personajes generados con código, sin equipos, escudos ni personajes reales. «Mundo Cubo» usa el estilo de bloques, que es un género, pero no el nombre, los personajes ni el aspecto de ningún juego concreto.
+
+**Mundo Cubo** tiene una mecánica propia: en cada zona se construye algo bloque a bloque mientras se cepilla (una casa, una torre, un puente y un castillo). Al terminar se ven las cuatro sobre islas flotantes, y en el inicio aparece su mundo con todo lo construido (hasta 12 islas a la vista).
 
 ## Accesorios
 

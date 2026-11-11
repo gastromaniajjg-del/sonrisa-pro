@@ -69,7 +69,7 @@ export function buildGeneric(m) {
       });
 
       if (p === 0 || p === 2) {
-        m.motif.forEach(([beat, note]) => ev.push({ t: t0 + beat * b, dur: m.motifInst === 'lead' ? 0.9 * b : 1.2, type: m.motifInst, note, vel: m.motifInst === 'lead' ? 0.55 : 0.5 }));
+        m.motif.forEach(([beat, note]) => ev.push({ t: t0 + beat * b, dur: m.motifInst === 'lead' ? 0.9 * b : 1.2, type: m.motifInst, note, vel: m.motifInst === 'lead' ? 0.55 : 0.5, wave: m.motifWave }));
       }
       if (exit) [[0, 72], [2, 76], [4, 79], [6, 84]].forEach(([beat, note]) => ev.push({ t: t0 + beat * b, dur: 1.4, type: 'bell', note, vel: 0.6 }));
       if (p === 3 && L < 3) ev.push({ t: t0 + 14 * b, dur: 2 * b, type: 'swell', vel: 0.5 });
@@ -117,6 +117,12 @@ function drums(ev, style, L, tb, chord, b, bar) {
       if (L >= 1) hats(0.4);
       if (L >= 2) bass();
       if (bar === 3) [2, 2.5, 3, 3.5].forEach((x, i) => tom(x, 48 - i * 2, 0.7));
+      break;
+    case 'chip': // estilo consola antigua: bombo, caja de ruido, charles y bajo saltarín
+      [0, 2].forEach((x) => kick(x, 0.75));
+      [1, 3].forEach((x) => ev.push({ t: tb + x * b, dur: 0.1, type: 'snare', vel: 0.55 }));
+      if (L >= 1) hats(0.35);
+      bass();
       break;
     default:
       break;

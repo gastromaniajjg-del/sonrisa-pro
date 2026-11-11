@@ -378,3 +378,18 @@ body[data-theme="partido"] h1 { color: #ffffff; text-shadow: 0 3px 0 rgba(0, 0, 
 .pact-bar i { display: block; height: 100%; background: var(--accent); }
 .pact-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 body[data-theme="dientin"] #gate-a, body[data-theme="dientin"] .pact-form input, body[data-theme="dientin"] .pact-form select { background: #fff; }
+
+body[data-theme="cubos"] {
+  --ink: #1b2a33; --muted: #4a5a63; --accent: #ff9f43; --accent-dark: #c96f1a; --on-accent: #2a1606; --cyan: #2f9e3f;
+  --panel: rgba(255, 255, 255, .86); --line: rgba(27, 42, 51, .18);
+  --gum-1: #ffc2cd; --gum-2: #ff8fa6; --tongue: #ff7f98; --tooth-dirty: #e8dcb8; --tooth-dirty-line: #c9b98a; --tooth-clean: #ffffff;
+  --radius: 6px;
+  background: #8fd3ff;
+}
+body[data-theme="cubos"] h1 { color: #ff8a1f; text-shadow: 3px 3px 0 #1b2a33; letter-spacing: .02em; }
+body[data-theme="cubos"] .card, body[data-theme="cubos"] .big-btn, body[data-theme="cubos"] .soft-btn, body[data-theme="cubos"] .icon-btn,
+body[data-theme="cubos"] .pill, body[data-theme="cubos"] .hud-top, body[data-theme="cubos"] .scanner, body[data-theme="cubos"] .radio { border-radius: 6px; }
+body[data-theme="cubos"] .big-btn { box-shadow: 0 5px 0 #1b2a33; }
+body[data-theme="cubos"] .radio { background: rgba(255, 255, 255, .92); color: #1b2a33; border-color: var(--line); }
+body[data-theme="cubos"] .level-card { color: #ff8a1f; text-shadow: 3px 3px 0 #1b2a33; background: rgba(255, 255, 255, .2); }
+body[data-theme="cubos"] .field input[type="text"], body[data-theme="cubos"] #gate-a, body[data-theme="cubos"] .pact-form input, body[data-theme="cubos"] .pact-form select { background: #fff; }
